@@ -5,5 +5,10 @@ setuptools.setup(
     author="Ondřej Cífka",
     description="A music sequence learning framework",
     packages=['museflow'],
-    install_requires=['tensorflow', 'pretty_midi', 'cached_property']
+    entry_points={
+        'console_scripts': [
+            'museflow = museflow.main:main'
+        ]
+    },
+    install_requires=['tensorflow', 'pretty_midi', 'cached_property'],
 )
