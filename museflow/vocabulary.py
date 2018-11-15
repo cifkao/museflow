@@ -5,7 +5,7 @@ class Vocabulary:
         if pad_token not in wordlist:
             wordlist.insert(0, pad_token)
         elif wordlist[0] != pad_token:
-            raise ValueError("<pad> has index {}, expected 0".format(wordlist.index(pad)))
+            raise ValueError("<pad> has index {}, expected 0".format(wordlist.index(pad_token)))
 
         if start_token not in wordlist:
             wordlist.append(start_token)
@@ -26,9 +26,9 @@ class Vocabulary:
         self.end_id = self._token2id[end_token]
 
     def __iter__(self):
-        return iter(self._wordlist)
+        return iter(self._id2token)
 
-    def __get__(self, key):
+    def __get__(self, key, owner):
         return self._token2id[key]
 
     def __len__(self):
@@ -40,7 +40,7 @@ class Vocabulary:
     def to_ids(self, tokens, levels=1):
         if levels > 1:
             return [self.to_ids(item, levels - 1) for item in tokens]
-        elif levels == 1:
+        if levels == 1:
             return [self._token2id[token] for token in tokens]
         raise ValueError('Invalid number of levels')
 
@@ -50,6 +50,6 @@ class Vocabulary:
     def from_ids(self, ids, levels=1):
         if levels > 1:
             return [self.from_ids(item, levels - 1) for item in ids]
-        elif levels == 1:
+        if levels == 1:
             return [self._id2token[i] for i in ids]
         raise ValueError('Invalid number of levels')

@@ -1,4 +1,6 @@
 import heapq
+from collections import defaultdict
+import sys
 
 import pretty_midi
 
@@ -10,36 +12,46 @@ class PerformanceEncoding:
     See https://magenta.tensorflow.org/performance-rnn.
     """
 
-    def __init__(self, time_unit=0.01, max_shift_units=100, velocity_unit=4, errors='remove'):
+    def __init__(self, time_unit=0.01, max_shift_units=100, velocity_unit=4, use_velocity=True,
+                 errors='remove'):
         self._time_unit = time_unit
         self._max_shift_units = max_shift_units
         self._velocity_unit = velocity_unit
+        self._use_velocity = use_velocity
         self._errors = errors
 
         max_velocity_units = (128 + velocity_unit - 1) // velocity_unit
-        self.vocabulary = Vocabulary(
-            ['<pad>', '<s>', '</s>'] +
-            [('NoteOn', i) for i in range(128)] +
-            [('NoteOff', i) for i in range(128)] +
-            [('SetVelocity', i + 1) for i in range(max_velocity_units)] +
-            [('TimeShift', i + 1) for i in range(max_shift_units)])
+
+        wordlist = (['<pad>', '<s>', '</s>'] +
+                    [('NoteOn', i) for i in range(128)] +
+                    [('NoteOff', i) for i in range(128)] +
+                    [('TimeShift', i + 1) for i in range(max_shift_units)])
+
+        if use_velocity:
+            wordlist.extend([('SetVelocity', i + 1) for i in range(max_velocity_units)])
+            self._default_velocity = 0
+        else:
+            self._default_velocity = 127
+
+        self.vocabulary = Vocabulary(wordlist)
 
     def encode(self, notes):
         queue = _NoteEventQueue(notes, quantization_step=self._time_unit)
         events = []
 
         last_t = 0
-        velocity = 0
+        velocity = self._default_velocity
         for t, note, is_onset in queue:
             while last_t < t:
-                shift_amount = min(t - last_t, max_shift_units)
+                shift_amount = min(t - last_t, self._max_shift_units)
                 last_t += shift_amount
                 events.append(('TimeShift', shift_amount))
 
             if is_onset:
                 if velocity != note.velocity:
                     velocity = note.velocity
-                    events.append(('SetVelocity', velocity // self._velocity_unit + 1))
+                    if self._use_velocity:
+                        events.append(('SetVelocity', velocity // self._velocity_unit + 1))
                 events.append(('NoteOn', note.pitch))
             else:
                 events.append(('NoteOff', note.pitch))
@@ -52,7 +64,7 @@ class PerformanceEncoding:
         error_count = 0
 
         t = 0
-        velocity = 0
+        velocity = self._default_velocity
         for event, value in events:
             if event == 'TimeShift':
                 t += value * self._time_unit
@@ -74,12 +86,14 @@ class PerformanceEncoding:
 
         if any(notes_on.values()):
             if self._errors == 'remove':
-                print('Warning: Removing {} hanging note(s)'.format(sum(len(l) for l in notes_on.values())), file=sys.stderr)
+                print('Warning: Removing {} hanging note(s)'.format(
+                    sum(len(l) for l in notes_on.values())), file=sys.stderr)
                 for notes_on_list in notes_on.values():
                     for note in notes_on_list:
                         notes.remove(note)
             else:  # 'ignore'
-                print('Warning: Ignoring {} hanging note(s)'.format(sum(len(l) for l in notes_on.values())), file=sys.stderr)
+                print('Warning: Ignoring {} hanging note(s)'.format(
+                    sum(len(l) for l in notes_on.values())), file=sys.stderr)
 
         return notes
 

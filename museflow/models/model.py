@@ -1,4 +1,5 @@
 from cached_property import cached_property
+import tensorflow as tf
 
 from ..components.component import Component, using_scope
 
