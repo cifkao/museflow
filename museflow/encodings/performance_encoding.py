@@ -35,7 +35,7 @@ class PerformanceEncoding:
 
         self.vocabulary = Vocabulary(wordlist)
 
-    def encode(self, notes):
+    def encode(self, notes, as_ids=True):
         queue = _NoteEventQueue(notes, quantization_step=self._time_unit)
         events = []
 
@@ -56,6 +56,8 @@ class PerformanceEncoding:
             else:
                 events.append(('NoteOff', note.pitch))
 
+        if as_ids:
+            return self.vocabulary.to_ids(events)
         return events
 
     def decode(self, events):
