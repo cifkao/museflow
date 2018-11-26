@@ -1,13 +1,17 @@
 import argparse
 import sys
 
-from . import commands
+from . import scripts
+
 
 def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(title='commands')
-    for module in [commands.data]:
-        module.add_parser(subparsers)
+
+    subparser = subparsers.add_parser('script')
+    script_subparsers = subparser.add_subparsers(title='scripts')
+    scripts.add_parsers(script_subparsers)
+
     args = parser.parse_args()
 
     try:
