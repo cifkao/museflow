@@ -26,16 +26,17 @@ class RNNDecoder(Component):
 
         self._targets = targets
         self._target_weights = tf.sign(self._targets, name='target_weights')
+        embedded_inputs = tf.nn.embedding_lookup(self.embedding, inputs)
 
         with tf.name_scope('decode_train'):
             if initial_state is None:
                 initial_state = self._cell.zero_state(batch_size=tf.shape(inputs)[0],
                                                       dtype=tf.float32)
 
-            sequence_length = tf.reduce_sum(self._target_weights, axis=1, name='sequence_length')
+            sequence_length = tf.reduce_sum(self._target_weights, axis=1)
             outputs, _ = tf.nn.dynamic_rnn(
                 self._cell,
-                tf.nn.embedding_lookup(self.embedding, inputs),
+                embedded_inputs,
                 sequence_length=sequence_length,
                 initial_state=initial_state)
             self.logits = self._output_projection(outputs)
