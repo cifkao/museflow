@@ -17,7 +17,7 @@ def setup_parser(parser):
     parser.add_argument('-b', '--bars-per-segment', type=int, default=8)
     parser.add_argument('-n', '--min-notes-per-segment', type=int, default=2)
     parser.add_argument('-t', '--force-tempo', type=float, default=None)
-    parser.add_argument('--skip-bars', type=int, default=None)
+    parser.add_argument('--skip-bars', type=int, default=0)
     parser.add_argument('--include-segment-id', action='store_true')
 
 

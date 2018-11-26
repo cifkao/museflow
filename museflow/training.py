@@ -12,5 +12,5 @@ def clip_gradients(grads_and_vars, max_gradient_norm):
         return grads_and_vars
 
     gradients, variables = zip(*grads_and_vars)
-    clipped_gradients, global_norm = tf.clip_by_global_norm(gradients, max_gradient_norm)
+    clipped_gradients, _ = tf.clip_by_global_norm(gradients, max_gradient_norm)
     return zip(clipped_gradients, variables)

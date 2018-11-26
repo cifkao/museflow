@@ -9,6 +9,7 @@ from ..vocabulary import Vocabulary
 class PerformanceEncoding:
     """An encoding of note sequences based on Magenta's PerformanceRNN.
 
+    This is actually very similar to how MIDI works.
     See https://magenta.tensorflow.org/performance-rnn.
     """
 
