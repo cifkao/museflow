@@ -18,14 +18,13 @@ class RNNDecoder(Component):
         with self.use_scope():
             self.embedding = tf.get_variable(
                 'embedding_matrix', shape=[len(vocabulary), embedding_size])
+            self._cell.build(tf.TensorShape([None, embedding_size]))
+            self._output_projection.build([None, self._cell.output_size])
+        self._built = True
 
     @using_scope
-    def build(self, inputs, targets, initial_state=None):
-        if self._built:
-            raise RuntimeError('Decoder already built')
-
-        self._targets = targets
-        self._target_weights = tf.sign(self._targets, name='target_weights')
+    def decode_train(self, inputs, targets, initial_state=None):
+        target_weights = tf.sign(targets, name='target_weights')
         embedded_inputs = tf.nn.embedding_lookup(self.embedding, inputs)
 
         with tf.name_scope('decode_train'):
@@ -33,33 +32,28 @@ class RNNDecoder(Component):
                 initial_state = self._cell.zero_state(batch_size=tf.shape(inputs)[0],
                                                       dtype=tf.float32)
 
-            sequence_length = tf.reduce_sum(self._target_weights, axis=1)
-            outputs, _ = tf.nn.dynamic_rnn(
+            sequence_length = tf.reduce_sum(target_weights, axis=1)
+            rnn_outputs, _ = tf.nn.dynamic_rnn(
                 self._cell,
                 embedded_inputs,
                 sequence_length=sequence_length,
                 initial_state=initial_state)
-            self.logits = self._output_projection(outputs)
-            self._built = True
+            logits = self._output_projection(rnn_outputs)
 
-            return tf.contrib.seq2seq.BasicDecoderOutput(
-                rnn_output=self.logits,
-                sample_id=tf.argmax(self.logits, axis=-1)
+            output = tf.contrib.seq2seq.BasicDecoderOutput(
+                rnn_output=logits,
+                sample_id=tf.argmax(logits, axis=-1)
             )
 
-    @cached_property
-    @using_scope
-    def loss(self):
-        if not self._built:
-            raise RuntimeError("Attempt to access 'loss' before decoder is built")
-
         with tf.name_scope('loss'):
-            batch_size = tf.shape(self.logits)[0]
+            batch_size = tf.shape(logits)[0]
             train_xent = tf.nn.sparse_softmax_cross_entropy_with_logits(
-                labels=self._targets,
-                logits=self.logits)
-            return (tf.reduce_sum(train_xent * tf.to_float(self._target_weights)) /
+                labels=targets,
+                logits=logits)
+            loss = (tf.reduce_sum(train_xent * tf.to_float(target_weights)) /
                     tf.to_float(batch_size))
+
+        return output, loss
 
     @using_scope
     def decode(self, initial_state=None, max_length=None, batch_size=None,
@@ -76,13 +70,13 @@ class RNNDecoder(Component):
                 helper=self._make_helper(batch_size, softmax_temperature, mode),
                 initial_state=initial_state,
                 output_layer=self._output_projection)
-            outputs, _, _ = tf.contrib.seq2seq.dynamic_decode(
+            output, _, _ = tf.contrib.seq2seq.dynamic_decode(
                 decoder=decoder,
                 output_time_major=False,
                 impute_finished=True,
                 maximum_iterations=max_length or self._max_length)
 
-            return outputs
+        return output
 
     def _make_helper(self, batch_size, softmax_temperature, mode):
         helper_kwargs = {
