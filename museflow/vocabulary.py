@@ -7,9 +7,9 @@ class Vocabulary:
         elif wordlist[0] != pad_token:
             raise ValueError("<pad> has index {}, expected 0".format(wordlist.index(pad_token)))
 
-        if start_token not in wordlist:
+        if start_token and start_token not in wordlist:
             wordlist.append(start_token)
-        if end_token not in wordlist:
+        if end_token and end_token not in wordlist:
             wordlist.append(end_token)
 
         if len(set(wordlist)) != len(wordlist):
@@ -22,8 +22,8 @@ class Vocabulary:
 
         self._token2id = {val: i for i, val in enumerate(wordlist)}
         self.pad_id = self._token2id[pad_token]
-        self.start_id = self._token2id[start_token]
-        self.end_id = self._token2id[end_token]
+        self.start_id = self._token2id.get(start_token)
+        self.end_id = self._token2id.get(end_token)
 
     def __iter__(self):
         return iter(self._id2token)
@@ -33,6 +33,9 @@ class Vocabulary:
 
     def __len__(self):
         return len(self._id2token)
+
+    def __contains__(self, item):
+        return item in self._id2token
 
     def to_id(self, token):
         return self._token2id[token]

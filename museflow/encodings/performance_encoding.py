@@ -1,10 +1,12 @@
-import heapq
 from collections import defaultdict
+import heapq
 import sys
+
+import numpy as np
 
 import pretty_midi
 
-from ..vocabulary import Vocabulary
+from museflow.vocabulary import Vocabulary
 
 class PerformanceEncoding:
     """An encoding of note sequences based on Magenta's PerformanceRNN.
@@ -36,9 +38,9 @@ class PerformanceEncoding:
 
         self.vocabulary = Vocabulary(wordlist)
 
-    def encode(self, notes, as_ids=True):
+    def encode(self, notes, as_ids=True, add_start=False, add_end=False):
         queue = _NoteEventQueue(notes, quantization_step=self._time_unit)
-        events = []
+        events = [self.vocabulary.start_token] if add_start else []
 
         last_t = 0
         velocity = self._default_velocity
@@ -57,18 +59,30 @@ class PerformanceEncoding:
             else:
                 events.append(('NoteOff', note.pitch))
 
+        if add_end:
+            events.append(self.vocabulary.end_token)
+
         if as_ids:
             return self.vocabulary.to_ids(events)
         return events
 
-    def decode(self, events):
+    def decode(self, tokens):
         notes = []
         notes_on = defaultdict(list)
         error_count = 0
 
         t = 0
         velocity = self._default_velocity
-        for event, value in events:
+        for token in tokens:
+            if isinstance(token, (int, np.integer)):
+                token = self.vocabulary.from_id(token)
+            if token not in self.vocabulary:
+                error_count += 1
+                continue
+            if not isinstance(token, tuple):
+                continue
+            event, value = token
+
             if event == 'TimeShift':
                 t += value * self._time_unit
             elif event == 'SetVelocity':
@@ -83,6 +97,8 @@ class PerformanceEncoding:
                     note.end = t
                 except IndexError:
                     error_count += 1
+            else:
+                error_count += 1
 
         if error_count:
             print('Warning: Encountered {} errors'.format(error_count), file=sys.stderr)
@@ -126,7 +142,7 @@ class _NoteEventQueue:
         # Below, the ID of the Note object is used to stop the heap algorithm from
         # comparing the Note itself, which would raise an exception.
         self._heap = [(self._quantize(note.start), True, note.pitch, id(note), note)
-                       for note in notes]
+                      for note in notes]
         heapq.heapify(self._heap)
 
     def pop(self):
@@ -146,11 +162,10 @@ class _NoteEventQueue:
         return time, note, is_onset
 
     def __iter__(self):
-        while len(self._heap) > 0:
+        while self._heap:
             yield self.pop()
 
     def _quantize(self, value):
         if self._quantization_step:
             return int(value / self._quantization_step + 0.5)  # Round to nearest int
-        else:
-            return value
+        return value
