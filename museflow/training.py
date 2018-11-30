@@ -1,7 +1,10 @@
+import logging
 import os
 
 import numpy as np
 import tensorflow as tf
+
+from museflow.config import Configurable
 
 
 def create_train_op(optimizer, loss, variables, max_gradient_norm=None, name='training'):
@@ -77,9 +80,12 @@ class DatasetManager:
         return results
 
 
-class BasicTrainer:
+class BasicTrainer(Configurable):
+    _subconfigs = ['latest_saver', 'best_saver']
 
-    def __init__(self, session, logdir, logging_period, validation_period):
+    def __init__(self, session, logdir, logging_period, validation_period, config=None):
+        Configurable.__init__(self, config)
+
         self.session = session
         self._logdir = logdir
         self._logging_period = logging_period
@@ -111,9 +117,7 @@ class BasicTrainer:
     def train(self, train_op, loss, init_op=(), train_summary_op=()):
         if self._writer is None:
             self._writer = tf.summary.FileWriter(logdir=self._logdir, graph=tf.get_default_graph())
-            with tf.name_scope('savers'):
-                self._latest_saver = tf.train.Saver(name='latest')
-                self._best_saver = tf.train.Saver(name='best', max_to_keep=1)
+        self._ensure_savers()
 
         self.session.run(init_op)
 
@@ -124,8 +128,8 @@ class BasicTrainer:
             mean_loss = self.validate(loss)
             if mean_loss < best_mean_loss:
                 best_mean_loss = mean_loss
-                self.save_best()
-            self.save_latest()
+                self.save_variables('best')
+            self.save_variables('latest')
 
         while True:
             print(self._step)
@@ -162,16 +166,26 @@ class BasicTrainer:
 
         return mean_loss
 
-    def save_latest(self):
-        self._latest_saver.save(
+    def save_variables(self, checkpoint_name='latest'):
+        self._ensure_savers()
+        saver = self._best_saver if checkpoint_name == 'best' else self._latest_saver
+        saver.save(
             self.session,
-            os.path.join(self._logdir, 'latest.ckpt'),
-            latest_filename='latest_checkpoint',
+            os.path.join(self._logdir, checkpoint_name + '.ckpt'),
+            latest_filename=checkpoint_name + '_checkpoint',
             global_step=self._step)
 
-    def save_best(self):
-        self._best_saver.save(
-            self.session,
-            os.path.join(self._logdir, 'best.ckpt'),
-            latest_filename='best_checkpoint',
-            global_step=self._step)
+    def load_variables(self, checkpoint_name='latest', checkpoint_file=None):
+        self._ensure_savers()
+        saver = self._best_saver if checkpoint_name == 'best' else self._latest_saver
+        if not checkpoint_file:
+            checkpoint_file = tf.train.latest_checkpoint(self._logdir,
+                                                         checkpoint_name + '_checkpoint')
+        saver.restore(self.session, checkpoint_file)
+        self._step = self.session.run(self._global_step_tensor)
+
+    def _ensure_savers(self):
+        if self._latest_saver is None:
+            self._latest_saver = self._configure('latest_saver', tf.train.Saver, name='latest')
+            self._best_saver = self._configure('best_saver', tf.train.Saver,
+                                               name='best', max_to_keep=1)

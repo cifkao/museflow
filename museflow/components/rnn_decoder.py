@@ -1,13 +1,16 @@
 from cached_property import threaded_cached_property as cached_property
 import tensorflow as tf
 
+from museflow.config import Configurable
 from .component import Component, using_scope
 
 
-class RNNDecoder(Component):
+class RNNDecoder(Component, Configurable):
 
-    def __init__(self, cell, vocabulary, embedding_size, max_length=None, name='decoder'):
-        super().__init__(name=name)
+    def __init__(self, cell, vocabulary, embedding_size, max_length=None, name='decoder',
+                 config=None):
+        Component.__init__(self, name=name)
+        Configurable.__init__(self, config)
 
         self._cell = cell
         self._vocabulary = vocabulary

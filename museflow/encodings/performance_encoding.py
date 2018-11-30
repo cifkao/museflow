@@ -7,8 +7,9 @@ import numpy as np
 import pretty_midi
 
 from museflow.vocabulary import Vocabulary
+from museflow.config import Configurable
 
-class PerformanceEncoding:
+class PerformanceEncoding(Configurable):
     """An encoding of note sequences based on Magenta's PerformanceRNN.
 
     This is actually very similar to how MIDI works.
@@ -16,7 +17,9 @@ class PerformanceEncoding:
     """
 
     def __init__(self, time_unit=0.01, max_shift_units=100, velocity_unit=4, use_velocity=True,
-                 errors='remove'):
+                 errors='remove', config=None):
+        Configurable.__init__(self, config)
+
         self._time_unit = time_unit
         self._max_shift_units = max_shift_units
         self._velocity_unit = velocity_unit
