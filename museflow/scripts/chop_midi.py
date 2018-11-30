@@ -9,7 +9,7 @@ import sys
 import pretty_midi
 
 
-def setup_parser(parser):
+def setup_argparser(parser):
     parser.set_defaults(func=main)
     parser.add_argument('fnames', type=str, nargs='+', metavar='FILE')
     parser.add_argument('ofname', type=str, metavar='OUTPUTFILE')
@@ -35,7 +35,7 @@ def chop_midi(midis, instrument_re, bars_per_segment, min_notes_per_segment=2,
         instruments = [i for i in midi.instruments if re.search(instrument_re, i.name)]
         if len(instruments) < 1:
             print(
-                'Regex {!r} does not match any track in file {!r}; skipping file'
+                'Regex {} does not match any track in file {}; skipping file'
                 .format(instrument_re, file_id), file=sys.stderr)
             continue
         all_notes = [n for i in instruments for n in i.notes]
@@ -96,5 +96,5 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    setup_parser(parser)
+    setup_argparser(parser)
     main(parser.parse_args())
