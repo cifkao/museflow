@@ -10,5 +10,11 @@ setuptools.setup(
             'museflow = museflow.main:main'
         ]
     },
-    install_requires=['tensorflow', 'pretty_midi', 'cached_property'],
+    install_requires=[
+        'cached_property',
+        'numpy',
+        'pretty_midi',
+        'pyyaml',
+        'tensorflow',
+    ],
 )
