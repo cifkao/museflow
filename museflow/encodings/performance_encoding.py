@@ -3,9 +3,9 @@ import heapq
 import sys
 
 import numpy as np
-
 import pretty_midi
 
+from museflow import logger
 from museflow.vocabulary import Vocabulary
 from museflow.config import Configurable
 
@@ -104,18 +104,18 @@ class PerformanceEncoding(Configurable):
                 error_count += 1
 
         if error_count:
-            print('Warning: Encountered {} errors'.format(error_count), file=sys.stderr)
+            logger.debug('Encountered {} errors'.format(error_count))
 
         if any(notes_on.values()):
             if self._errors == 'remove':
-                print('Warning: Removing {} hanging note(s)'.format(
-                    sum(len(l) for l in notes_on.values())), file=sys.stderr)
+                logger.debug('Removing {} hanging note(s)'.format(
+                    sum(len(l) for l in notes_on.values())))
                 for notes_on_list in notes_on.values():
                     for note in notes_on_list:
                         notes.remove(note)
             else:  # 'ignore'
-                print('Warning: Ignoring {} hanging note(s)'.format(
-                    sum(len(l) for l in notes_on.values())), file=sys.stderr)
+                logger.debug('Ignoring {} hanging note(s)'.format(
+                    sum(len(l) for l in notes_on.values())))
 
         return notes
 
