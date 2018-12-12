@@ -8,11 +8,13 @@ import sys
 
 import pretty_midi
 
+from museflow import logger
+
 
 def setup_argparser(parser):
     parser.set_defaults(func=main)
-    parser.add_argument('fnames', type=str, nargs='+', metavar='FILE')
-    parser.add_argument('ofname', type=str, metavar='OUTPUTFILE')
+    parser.add_argument('input_files', type=argparse.FileType('rb'), nargs='+', metavar='FILE')
+    parser.add_argument('output_file', type=argparse.FileType('wb'), metavar='OUTPUTFILE')
     parser.add_argument('-i', '--instrument-re', type=str, default='.*')
     parser.add_argument('-b', '--bars-per-segment', type=int, default=8)
     parser.add_argument('-n', '--min-notes-per-segment', type=int, default=2)
@@ -21,22 +23,19 @@ def setup_argparser(parser):
     parser.add_argument('--include-segment-id', action='store_true')
 
 
-def chop_midi(midis, instrument_re, bars_per_segment, min_notes_per_segment=2,
+def chop_midi(files, instrument_re, bars_per_segment, min_notes_per_segment=2,
               include_segment_id=False, force_tempo=None, skip_bars=0):
-    for file_index, midi in enumerate(midis):
-        file_id = file_index
-        if not isinstance(midi, pretty_midi.PrettyMIDI):
-            file_id = str(midi)
-            midi = pretty_midi.PrettyMIDI(midi)
+    for file in files:
+        file_id = file.name
+        midi = pretty_midi.PrettyMIDI(file)
 
         if force_tempo is not None:
             normalize_tempo(midi, force_tempo)
 
         instruments = [i for i in midi.instruments if re.search(instrument_re, i.name)]
-        if len(instruments) < 1:
-            print(
-                'Regex {} does not match any track in file {}; skipping file'
-                .format(instrument_re, file_id), file=sys.stderr)
+        if not instruments:
+            logger.warning('Regex {} does not match any track in file {}; skipping file'.format(
+                instrument_re, file_id))
             continue
         all_notes = [n for i in instruments for n in i.notes]
 
@@ -83,18 +82,11 @@ def normalize_tempo(midi, new_tempo=60):
 
 
 def main(args):
-    output = list(chop_midi(midis=args.fnames,
+    output = list(chop_midi(files=args.input_files,
                             instrument_re=args.instrument_re,
                             bars_per_segment=args.bars_per_segment,
                             min_notes_per_segment=args.min_notes_per_segment,
                             include_segment_id=args.include_segment_id,
                             force_tempo=args.force_tempo,
                             skip_bars=args.skip_bars))
-    with open(args.ofname, 'wb') as f:
-        pickle.dump(output, f)
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description=__doc__)
-    setup_argparser(parser)
-    main(parser.parse_args())
+    pickle.dump(output, args.output_file)
