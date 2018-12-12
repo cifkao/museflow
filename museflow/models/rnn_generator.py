@@ -9,13 +9,14 @@ import tensorflow as tf
 import yaml
 
 from museflow.config import Configurable
-from museflow.components import RNNDecoder
+from museflow.components import RNNDecoder, EmbeddingLayer
 from museflow.encodings import PerformanceEncoding
-from museflow.training import create_train_op, BasicTrainer
+from museflow.model_utils import DatasetManager, create_train_op, prepare_train_and_val_data
+from museflow.training import BasicTrainer
 
 
 class RNNGenerator(Configurable):
-    _subconfigs = ['encoding', 'trainer', 'decoder', 'rnn_cell', 'optimizer']
+    _subconfigs = ['data_prep', 'encoding', 'embedding_layer', 'decoder', 'trainer', 'optimizer']
 
     def __init__(self, logdir, train_mode, config=None, **kwargs):
         Configurable.__init__(self, config)
@@ -23,51 +24,48 @@ class RNNGenerator(Configurable):
         self._logdir = logdir
         self._args = kwargs
 
-        self._session = tf.Session()
         self._encoding = self._configure('encoding')
-        self._trainer = self._configure('trainer', BasicTrainer,
-                                        logdir=self._logdir, session=self._session)
 
-        self._decoder = self._configure(
-            'decoder', RNNDecoder,
-            cell=self._configure('rnn_cell', tf.nn.rnn_cell.GRUCell, dtype=tf.float32),
-            vocabulary=self._encoding.vocabulary)
+        with tf.name_scope('data'):
+            self._dataset_manager = DatasetManager()
+            if train_mode:
+                # Configure the dataset manager with the training and validation data.
+                self._configure('data_prep', prepare_train_and_val_data,
+                                dataset_manager=self._dataset_manager,
+                                train_generator=self._make_data_generator(self._args['train_data']),
+                                val_generator=self._make_data_generator(self._args['val_data']),
+                                output_types=(tf.int32, tf.int32),
+                                output_shapes=([None], [None]))
 
-        # Build the training and sampling versions of the decoder
+        vocabulary = self._encoding.vocabulary
+        embeddings = self._configure('embedding_layer', EmbeddingLayer, input_size=len(vocabulary))
+        self._decoder = self._configure('decoder', RNNDecoder,
+                                        vocabulary=vocabulary,
+                                        embedding_layer=embeddings)
+
+        # Build the training version of the decoder and the training ops
         if train_mode:
-            inputs, targets = self._prepare_data()
+            inputs, targets = self._dataset_manager.get_batch()
             _, self._loss = self._decoder.decode_train(inputs, targets)
+            self._init_op, self._train_op, self._train_summary_op = self._make_train_ops()
+
+        # Build the sampling version of the decoder
         self._sample_batch_size = tf.placeholder(tf.int32, [])
         self._softmax_temperature = tf.placeholder(tf.float32, [])
         self._sample_outputs = self._decoder.decode(mode='sample',
                                                     batch_size=self._sample_batch_size,
                                                     softmax_temperature=self._softmax_temperature)
 
-        if train_mode:
-            self._init_op, self._train_op, self._train_summary_op = self._make_train_ops()
-
-    def _prepare_data(self):
-        with tf.name_scope('data'):
-            with tf.name_scope('train'):
-                train_dataset = tf.data.Dataset.from_generator(
-                    self._make_data_generator(self._args['train_data']),  (tf.int32, tf.int32))
-                train_dataset = train_dataset.shuffle(10000, reshuffle_each_iteration=True).repeat()
-                train_dataset = train_dataset.padded_batch(
-                    self._args['train_batch_size'], ([None], [None]))
-
-            with tf.name_scope('val'):
-                val_dataset = tf.data.Dataset.from_generator(
-                    self._make_data_generator(self._args['val_data']), (tf.int32, tf.int32))
-                val_dataset = val_dataset.padded_batch(
-                    self._args['val_batch_size'], ([None], [None]))
-
-            return self._trainer.prepare_data(train_dataset, val_dataset)
+        self._session = tf.Session()
+        self._trainer = self._configure('trainer', BasicTrainer,
+                                        dataset_manager=self._dataset_manager,
+                                        logdir=self._logdir, session=self._session)
 
     def _make_data_generator(self, fname):
-        def generator():
-            with open(fname, 'rb') as f:
-                data = pickle.load(f)
+        with open(fname, 'rb') as f:
+            data = pickle.load(f)
 
+        def generator():
             for _, example in data:
                 encoded = self._encoding.encode(example, add_start=True, add_end=True)
                 yield encoded[:-1], encoded[1:]
