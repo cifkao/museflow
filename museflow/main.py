@@ -2,9 +2,10 @@ import argparse
 import logging
 import sys
 
+import coloredlogs
 import yaml
 
-from museflow import scripts, models
+from museflow import scripts, models, logger
 
 
 def main():
@@ -13,8 +14,7 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(levelname)-8s %(message)s')
+    coloredlogs.install(level='DEBUG', logger=logger)
 
     parser = argparse.ArgumentParser()
     parser.set_defaults(func=print_help_and_exit)
@@ -45,5 +45,6 @@ def _add_model_argparsers(subparsers):
 def _run_model(args):
     with open(args.config, 'rb') as f:
         config = yaml.load(f)
+        logger.debug(config)
     model = args.model_class.from_args(args, config, logdir=args.logdir)
     model.run_action(args)
