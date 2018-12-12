@@ -1,5 +1,7 @@
 import sys
 
+from museflow import logger
+
 
 _NO_DEFAULT = object()
 
@@ -11,6 +13,10 @@ class Configurable:
         self._config_dict = config or {}
 
     def _configure(self, config_key, constructor=None, **kwargs):
+        if config_key not in self._subconfigs:
+            raise RuntimeError('Key {} not defined in {}._subconfigs'.format(
+                config_key, type(self).__name__))
+
         config = self._get_config(config_key, default={})
 
         if type(config) is not dict:
@@ -32,11 +38,14 @@ class Configurable:
             )).with_traceback(sys.exc_info()[2]) from None
 
         try:
-            if issubclass(constructor, Configurable):
+            # If it's a class which is a subclass of Configurable...
+            if isinstance(constructor, type) and issubclass(constructor, Configurable):
                 return constructor.from_config(config_dict, **kwargs)
 
             kwargs = dict(kwargs)
             kwargs.update(config_dict)
+            logger.debug('Calling {}({})'.format(
+                constructor.__name__, ', '.join(f'{k}={v!r}' for k, v in kwargs.items())))
             return constructor(**kwargs)
         except TypeError as e:
             raise ConfigError('{} while configuring {} ({!r}): {}'.format(
