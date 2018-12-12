@@ -6,38 +6,39 @@ from .component import Component, using_scope
 
 
 class RNNDecoder(Component, Configurable):
+    _subconfigs = ['cell', 'output_projection']
 
-    def __init__(self, cell, vocabulary, embedding_size, max_length=None, name='decoder',
-                 config=None):
+    def __init__(self, vocabulary, embedding_layer, max_length=None, name='decoder', config=None):
         Component.__init__(self, name=name)
         Configurable.__init__(self, config)
 
-        self._cell = cell
         self._vocabulary = vocabulary
-        self._output_projection = tf.layers.Dense(
-            len(vocabulary), use_bias=False, name='output_projection')
+        self._embeddings = embedding_layer
         self._max_length = max_length
 
         with self.use_scope():
-            self.embedding = tf.get_variable(
-                'embedding_matrix', shape=[len(vocabulary), embedding_size])
-            self._cell.build(tf.TensorShape([None, embedding_size]))
-            self._output_projection.build([None, self._cell.output_size])
+            self.cell = self._configure('cell', tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
+            self.cell.build(tf.TensorShape([None, self._embeddings.output_size]))
+
+            self._output_projection = self._configure('output_projection', tf.layers.Dense,
+                                                      units=len(vocabulary), use_bias=False,
+                                                      name='output_projection')
+            self._output_projection.build([None, self.cell.output_size])
         self._built = True
 
     @using_scope
     def decode_train(self, inputs, targets, initial_state=None):
         target_weights = tf.sign(targets, name='target_weights')
-        embedded_inputs = tf.nn.embedding_lookup(self.embedding, inputs)
+        embedded_inputs = self._embeddings.embed(inputs)
 
         with tf.name_scope('decode_train'):
             if initial_state is None:
-                initial_state = self._cell.zero_state(batch_size=tf.shape(inputs)[0],
-                                                      dtype=tf.float32)
+                initial_state = self.cell.zero_state(batch_size=tf.shape(inputs)[0],
+                                                     dtype=tf.float32)
 
             sequence_length = tf.reduce_sum(target_weights, axis=1)
             rnn_outputs, _ = tf.nn.dynamic_rnn(
-                self._cell,
+                self.cell,
                 embedded_inputs,
                 sequence_length=sequence_length,
                 initial_state=initial_state)
@@ -65,11 +66,11 @@ class RNNDecoder(Component, Configurable):
             if batch_size is None:
                 batch_size = tf.shape(initial_state)[0]
             if initial_state is None:
-                initial_state = self._cell.zero_state(batch_size=batch_size,
-                                                      dtype=tf.float32)
+                initial_state = self.cell.zero_state(batch_size=batch_size,
+                                                     dtype=tf.float32)
 
             decoder = tf.contrib.seq2seq.BasicDecoder(
-                cell=self._cell,
+                cell=self.cell,
                 helper=self._make_helper(batch_size, softmax_temperature, mode),
                 initial_state=initial_state,
                 output_layer=self._output_projection)
@@ -83,7 +84,7 @@ class RNNDecoder(Component, Configurable):
 
     def _make_helper(self, batch_size, softmax_temperature, mode):
         helper_kwargs = {
-            'embedding': self.embedding,
+            'embedding': self._embeddings.embedding_matrix,
             'start_tokens': tf.tile([self._vocabulary.start_id], [batch_size]),
             'end_token': self._vocabulary.end_id
         }
