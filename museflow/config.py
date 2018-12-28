@@ -19,6 +19,9 @@ class Configurable:
 
         config = self._get_config(config_key, default={})
 
+        if config is None:
+            return None
+
         if type(config) is not dict:
             if constructor or kwargs:
                 raise ConfigError('Error while configuring {}: dict expected, got {}'.format(
@@ -32,6 +35,8 @@ class Configurable:
             if not constructor or 'class' in config_dict:
                 constructor = config_dict['class']
                 del config_dict['class']
+                if not constructor:
+                    return None
         except Exception as e:
             raise ConfigError('{} while configuring {}: {}'.format(
                 type(e).__name__, config_key, e
