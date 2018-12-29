@@ -30,7 +30,9 @@ class RNNSeq2Seq(Configurable):
         self._encoding = self._configure('encoding')
 
         with tf.name_scope('data'):
-            self._dataset_manager = DatasetManager()
+            self._dataset_manager = DatasetManager(
+                output_types=(tf.int32, tf.int32, tf.int32),
+                output_shapes=([None, None], [None, None], [None, None]))
             if train_mode:
                 # Configure the dataset manager with the training and validation data.
                 self._configure('data_prep', prepare_train_and_val_data,
@@ -62,14 +64,11 @@ class RNNSeq2Seq(Configurable):
             self._init_op, self._train_op, self._train_summary_op = self._make_train_ops()
 
         # Build the sampling and greedy version of the decoder
-        self._sample_batch_size = tf.placeholder(tf.int32, [])
         self._softmax_temperature = tf.placeholder(tf.float32, [])
         self._sample_outputs = self._decoder.decode(mode='sample',
-                                                    batch_size=self._sample_batch_size,
                                                     softmax_temperature=self._softmax_temperature,
                                                     initial_state=decoder_initial_state)
         self._greedy_outputs = self._decoder.decode(mode='greedy',
-                                                    batch_size=self._sample_batch_size,
                                                     initial_state=decoder_initial_state)
 
         self._session = tf.Session()
@@ -150,7 +149,7 @@ class RNNSeq2Seq(Configurable):
         subparser.add_argument('input_file', type=argparse.FileType('rb'), metavar='INPUTFILE')
         subparser.add_argument('output_file', type=argparse.FileType('wb'), metavar='OUTPUTFILE')
         subparser.add_argument('--checkpoint', default=None, type=str)
-        subparser.add_argument('--batch-size', default=None, type=int)
+        subparser.add_argument('--batch-size', default=32, type=int)
         subparser.add_argument('--sample', action='store_true')
         subparser.add_argument('--softmax-temperature', default=1., type=float)
 
@@ -158,6 +157,7 @@ class RNNSeq2Seq(Configurable):
         if args.action == 'train':
             self.train()
         elif args.action == 'run':
+            self.load(checkpoint_file=args.checkpoint)
             data = pickle.load(args.input_file)
             output = self.run(data, args.batch_size, args.sample, args.softmax_temperature)
             pickle.dump(output, args.output_file)
