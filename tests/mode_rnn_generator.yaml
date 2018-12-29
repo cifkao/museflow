@@ -1,0 +1,23 @@
+encoding:
+  class: !!python/name:museflow.encodings.PerformanceEncoding
+  use_velocity: False
+  time_unit: 0.1
+  max_shift_units: 10
+
+embedding_layer:
+  output_size: 42
+decoder:
+  cell:
+    class: !!python/name:tensorflow.nn.rnn_cell.GRUCell
+    num_units: 300
+
+trainer:
+  logging_period: 4
+  validation_period: 20
+
+train_data: data/modes_C4.pickle
+val_data: data/modes_C4.pickle
+data_prep:
+  num_epochs: 2
+  train_batch_size: 16
+  val_batch_size: 30
