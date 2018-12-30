@@ -60,7 +60,9 @@ confidence=
 # --enable=similarities". If you want to run only the classes checker, but have
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
-disable=print-statement,
+disable=C,
+        R,
+        print-statement,
         parameter-unpacking,
         unpacking-in-except,
         old-raise-syntax,
@@ -139,13 +141,29 @@ disable=print-statement,
         xreadlines-attribute,
         deprecated-sys-function,
         exception-escape,
-        comprehension-escape
+        comprehension-escape,
+        logging-format-interpolation
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
 # multiple time (only on the command line, not in the configuration file where
 # it should appear only once). See also the "--disable" option for examples.
 enable=c-extension-no-member
+       bad-whitespace,
+       missing-final-newline,
+       line-too-long,
+       mixed-line-endings,
+       too-many-lines,
+       trailing-newlines,
+       trailing-whitespace,
+       unexpected-line-ending-format,
+       superfluous-parens,
+       bad-continuation,
+       cylic-import,
+       wrong-import-order,
+       wrong-import-position,
+       useless-import-alias,
+       ungrouped-imports
 
 
 [REPORTS]

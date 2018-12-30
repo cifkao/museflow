@@ -13,7 +13,7 @@ jobs:
         - pip install -e .
         - pip install pylint
       script:
-        - pylint --rcfile=.pylintrc --errors-only museflow
+        - pylint museflow
     - name: 'pycodestyle'
       install:
         - pip install pycodestyle
