@@ -64,7 +64,7 @@ class RNNSeq2Seq(Configurable):
             self._init_op, self._train_op, self._train_summary_op = self._make_train_ops()
 
         # Build the sampling and greedy version of the decoder
-        self._softmax_temperature = tf.placeholder(tf.float32, [])
+        self._softmax_temperature = tf.placeholder(tf.float32, [], name='softmax_temperature')
         self._sample_outputs = self._decoder.decode(mode='sample',
                                                     softmax_temperature=self._softmax_temperature,
                                                     initial_state=decoder_initial_state)

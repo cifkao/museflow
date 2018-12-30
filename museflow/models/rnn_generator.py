@@ -50,8 +50,8 @@ class RNNGenerator(Configurable):
             self._init_op, self._train_op, self._train_summary_op = self._make_train_ops()
 
         # Build the sampling version of the decoder
-        self._sample_batch_size = tf.placeholder(tf.int32, [])
-        self._softmax_temperature = tf.placeholder(tf.float32, [])
+        self._sample_batch_size = tf.placeholder(tf.int32, [], name='sample_batch_size')
+        self._softmax_temperature = tf.placeholder(tf.float32, [], name='softmax_temperature')
         self._sample_outputs = self._decoder.decode(mode='sample',
                                                     batch_size=self._sample_batch_size,
                                                     softmax_temperature=self._softmax_temperature)

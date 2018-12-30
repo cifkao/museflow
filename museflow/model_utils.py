@@ -30,7 +30,7 @@ class DatasetManager:
         self.datasets = {}
         self._iterators = {}
         self._handles = {}
-        self._handle_placeholder = tf.placeholder(tf.string, [])
+        self._handle_placeholder = tf.placeholder(tf.string, [], name='dataset_handle')
         self._global_iterator = None
 
     def add_dataset(self, name, dataset, one_shot=False):
