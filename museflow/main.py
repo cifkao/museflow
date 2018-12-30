@@ -42,6 +42,7 @@ def _add_model_argparsers(subparsers):
         subparser.add_argument('--logdir', type=str, required=True, help='model directory')
         model_class.setup_argparser(subparser)
 
+
 def _run_model(args):
     with open(args.config, 'rb') as f:
         config = yaml.load(f)

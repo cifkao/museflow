@@ -9,6 +9,7 @@ from museflow import logger
 from museflow.vocabulary import Vocabulary
 from museflow.config import Configurable
 
+
 class PerformanceEncoding(Configurable):
     """An encoding of note sequences based on Magenta's PerformanceRNN.
 

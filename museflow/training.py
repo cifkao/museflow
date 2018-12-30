@@ -39,6 +39,7 @@ class BasicTrainer(Configurable):
         self.session.run(init_op)
 
         best_mean_loss = np.inf
+
         def validate_and_save(loss):
             nonlocal best_mean_loss
 
