@@ -49,8 +49,7 @@ class Configurable:
 
             kwargs = dict(kwargs)
             kwargs.update(config_dict)
-            logger.debug('Calling {}({})'.format(
-                constructor.__name__, ', '.join(f'{k}={v!r}' for k, v in kwargs.items())))
+            _log_call(constructor, **kwargs)
             return constructor(**kwargs)
         except TypeError as e:
             raise ConfigError('{} while configuring {} ({!r}): {}'.format(
@@ -68,7 +67,13 @@ class Configurable:
         kwargs.update({k: v for k, v in config.items() if k not in cls._subconfigs})
         config = {k: v for k, v in config.items() if k in cls._subconfigs}
 
+        _log_call(cls, *args, **kwargs)
         return cls(*args, **kwargs, config=config)
+
+
+def _log_call(fn, *args, **kwargs):
+    args_and_kwargs = [f'{a}' for a in args] + [f'{k}={v!r}' for k, v in kwargs.items()]
+    logger.debug('Calling {}({})'.format(fn.__name__, ', '.join(args_and_kwargs)))
 
 
 class ConfigError(Exception):
