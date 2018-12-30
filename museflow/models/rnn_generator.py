@@ -109,8 +109,8 @@ class RNNGenerator(Configurable):
         subparsers.add_parser('train')
         subparser = subparsers.add_parser('sample')
         subparser.add_argument('--checkpoint', default=None, type=str)
-        subparser.add_argument('--batch_size', default=1, type=int)
-        subparser.add_argument('--softmax_temperature', default=1., type=float)
+        subparser.add_argument('--batch-size', default=1, type=int)
+        subparser.add_argument('--softmax-temperature', default=1., type=float)
 
     def run_action(self, args):
         if args.action == 'train':
