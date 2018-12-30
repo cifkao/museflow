@@ -1,17 +1,10 @@
 import argparse
-import fileinput
-import itertools
 import pickle
-import sys
 
-import pretty_midi
-import numpy as np
 import tensorflow as tf
-import yaml
 
 from museflow.config import Configurable
 from museflow.components import EmbeddingLayer, RNNEncoder, RNNDecoder
-from museflow.encodings import PerformanceEncoding
 from museflow.model_utils import (DatasetManager, create_train_op, prepare_train_and_val_data,
                                   make_simple_dataset)
 from museflow.training import BasicTrainer

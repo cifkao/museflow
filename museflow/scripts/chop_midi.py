@@ -4,7 +4,6 @@ import argparse
 import math
 import pickle
 import re
-import sys
 
 import pretty_midi
 

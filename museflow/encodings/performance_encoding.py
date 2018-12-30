@@ -1,6 +1,5 @@
 from collections import defaultdict
 import heapq
-import sys
 
 import numpy as np
 import pretty_midi

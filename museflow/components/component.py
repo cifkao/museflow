@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from functools import wraps
 
 from cached_property import threaded_cached_property as cached_property
 import tensorflow as tf

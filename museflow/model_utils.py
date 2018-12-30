@@ -1,4 +1,3 @@
-from cached_property import threaded_cached_property as cached_property
 import numpy as np
 import tensorflow as tf
 
