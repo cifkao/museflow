@@ -10,6 +10,7 @@ decoder:
   cell:
     class: !!python/name:tensorflow.nn.rnn_cell.GRUCell
     num_units: 300
+  max_length: 50
 
 trainer:
   logging_period: 4
