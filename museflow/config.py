@@ -12,12 +12,14 @@ class Configurable:
     def __init__(self, config=None):
         self._config_dict = config or {}
 
-    def _configure(self, config_key, constructor=None, **kwargs):
+    def _configure(self, config_key, constructor=None, _default=_NO_DEFAULT, **kwargs):
         if config_key not in self._subconfigs:
             raise RuntimeError('Key {} not defined in {}._subconfigs'.format(
                 config_key, type(self).__name__))
 
-        config = self._get_config(config_key, default={})
+        if _default is _NO_DEFAULT:
+            _default = {}
+        config = self._get_config(config_key, _default)
 
         if config is None:
             return None
@@ -55,6 +57,9 @@ class Configurable:
             raise ConfigError('{} while configuring {} ({!r}): {}'.format(
                 type(e).__name__, config_key, constructor, e
             )).with_traceback(sys.exc_info()[2]) from None
+
+    def _maybe_configure(self, config_key, constructor=None, **kwargs):
+        return self._configure(config_key, constructor, _default=None, **kwargs)
 
     def _get_config(self, key, default=_NO_DEFAULT):
         if default is _NO_DEFAULT:

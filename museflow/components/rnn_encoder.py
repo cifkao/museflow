@@ -14,8 +14,8 @@ class RNNEncoder(Component, Configurable):
         with self.use_scope():
             self._fw_cell = self._configure('forward_cell', tf.nn.rnn_cell.GRUCell,
                                             dtype=tf.float32)
-            self._bw_cell = self._configure('backward_cell', tf.nn.rnn_cell.GRUCell,
-                                            dtype=tf.float32) if 'backward_cell' in config else None
+            self._bw_cell = self._maybe_configure('backward_cell', tf.nn.rnn_cell.GRUCell,
+                                                  dtype=tf.float32)
 
     @using_scope
     def encode(self, inputs):
