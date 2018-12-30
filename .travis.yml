@@ -3,14 +3,20 @@ python:
   - "3.6"
 jobs:
   include:
+    - name: 'Model tests'
+      install:
+        - pip install -e .
+      script:
+        - cd tests; ./test_models.sh
     - name: 'Pylint'
       install:
         - pip install -e .
         - pip install pylint
       script:
         - pylint --rcfile=.pylintrc --errors-only museflow
-    - name: 'Model tests'
+    - name: 'pycodestyle'
       install:
         - pip install -e .
+        - pip install pycodestyle
       script:
-        - cd tests; ./test_models.sh
+        - pycodestyle museflow
