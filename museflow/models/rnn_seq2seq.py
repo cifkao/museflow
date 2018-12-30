@@ -19,7 +19,7 @@ from museflow.training import BasicTrainer
 
 class RNNSeq2Seq(Configurable):
     _subconfigs = ['data_prep', 'encoding', 'trainer', 'embedding_layer', 'encoder',
-                   'state_projection', 'decoder', 'optimizer']
+                   'state_projection', 'decoder', 'attention_mechanism', 'optimizer']
 
     def __init__(self, logdir, train_mode, config=None, **kwargs):
         Configurable.__init__(self, config)
@@ -44,18 +44,26 @@ class RNNSeq2Seq(Configurable):
                                 output_types=(tf.int32, tf.int32, tf.int32),
                                 output_shapes=([None], [None], [None]))
 
+        inputs, decoder_inputs, decoder_targets = self._dataset_manager.get_batch()
+        batch_size = tf.shape(inputs)[0]
+
         vocabulary = self._encoding.vocabulary
         embeddings = self._configure('embedding_layer', EmbeddingLayer, input_size=len(vocabulary))
         encoder = self._configure('encoder', RNNEncoder)
+        encoder_states, encoder_final_state = encoder.encode(embeddings.embed(inputs))
+
+        attention = self._maybe_configure('attention_mechanism', memory=encoder_states)
         self._decoder = self._configure('decoder', RNNDecoder,
                                         vocabulary=vocabulary,
-                                        embedding_layer=embeddings)
+                                        embedding_layer=embeddings,
+                                        attention_mechanism=attention)
 
-        inputs, decoder_inputs, decoder_targets = self._dataset_manager.get_batch()
-        _, encoder_final_state = encoder.encode(embeddings.embed(inputs))
-        state_projection = self._configure('state_projection', tf.layers.Dense,
-                                           units=self._decoder.cell.state_size)
-        decoder_initial_state = state_projection(encoder_final_state)
+        # Supply initial state if attention is not used
+        decoder_initial_state = None
+        if not attention:
+            state_projection = self._configure('state_projection', tf.layers.Dense,
+                                               units=self._decoder.cell.state_size)
+            decoder_initial_state = state_projection(encoder_final_state)
 
         # Build the training version of the decoder and the training ops
         if train_mode:
@@ -67,9 +75,11 @@ class RNNSeq2Seq(Configurable):
         self._softmax_temperature = tf.placeholder(tf.float32, [], name='softmax_temperature')
         self._sample_outputs = self._decoder.decode(mode='sample',
                                                     softmax_temperature=self._softmax_temperature,
-                                                    initial_state=decoder_initial_state)
+                                                    initial_state=decoder_initial_state,
+                                                    batch_size=batch_size)
         self._greedy_outputs = self._decoder.decode(mode='greedy',
-                                                    initial_state=decoder_initial_state)
+                                                    initial_state=decoder_initial_state,
+                                                    batch_size=batch_size)
 
         self._session = tf.Session()
         self._trainer = self._configure('trainer', BasicTrainer,

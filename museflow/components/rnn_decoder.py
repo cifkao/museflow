@@ -6,18 +6,26 @@ from .component import Component, using_scope
 
 
 class RNNDecoder(Component, Configurable):
-    _subconfigs = ['cell', 'output_projection']
+    _subconfigs = ['cell', 'output_projection', 'attention_wrapper']
 
-    def __init__(self, vocabulary, embedding_layer, max_length=None, name='decoder', config=None):
+    def __init__(self, vocabulary, embedding_layer, attention_mechanism=None, max_length=None,
+                 name='decoder', config=None):
         Component.__init__(self, name=name)
         Configurable.__init__(self, config)
 
         self._vocabulary = vocabulary
         self._embeddings = embedding_layer
+        self._attention_mechanism = attention_mechanism
         self._max_length = max_length
 
         with self.use_scope():
             self.cell = self._configure('cell', tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
+            if self._attention_mechanism:
+                self.cell = self._configure('attention_wrapper',
+                                            tf.contrib.seq2seq.AttentionWrapper,
+                                            cell=self.cell,
+                                            attention_mechanism=self._attention_mechanism,
+                                            output_attention=False)
             self.cell.build(tf.TensorShape([None, self._embeddings.output_size]))
 
             self._output_projection = self._configure('output_projection', tf.layers.Dense,
@@ -37,17 +45,13 @@ class RNNDecoder(Component, Configurable):
                                                      dtype=tf.float32)
 
             sequence_length = tf.reduce_sum(target_weights, axis=1)
-            rnn_outputs, _ = tf.nn.dynamic_rnn(
-                self.cell,
-                embedded_inputs,
+            helper = tf.contrib.seq2seq.TrainingHelper(
+                inputs=embedded_inputs,
                 sequence_length=sequence_length,
-                initial_state=initial_state)
-            logits = self._output_projection(rnn_outputs)
-
-            output = tf.contrib.seq2seq.BasicDecoderOutput(
-                rnn_output=logits,
-                sample_id=tf.argmax(logits, axis=-1)
-            )
+                time_major=False)
+            output = self._dynamic_decode(helper=helper,
+                                          initial_state=initial_state)
+            logits = output.rnn_output
 
         with tf.name_scope('loss'):
             batch_size = tf.shape(logits)[0]
@@ -69,18 +73,10 @@ class RNNDecoder(Component, Configurable):
                 initial_state = self.cell.zero_state(batch_size=batch_size,
                                                      dtype=tf.float32)
 
-            decoder = tf.contrib.seq2seq.BasicDecoder(
-                cell=self.cell,
-                helper=self._make_helper(batch_size, softmax_temperature, mode),
-                initial_state=initial_state,
-                output_layer=self._output_projection)
-            output, _, _ = tf.contrib.seq2seq.dynamic_decode(
-                decoder=decoder,
-                output_time_major=False,
-                impute_finished=True,
-                maximum_iterations=max_length or self._max_length)
-
-        return output
+        return self._dynamic_decode(
+            helper=self._make_helper(batch_size, softmax_temperature, mode),
+            initial_state=initial_state,
+            max_length=max_length or self._max_length)
 
     def _make_helper(self, batch_size, softmax_temperature, mode):
         helper_kwargs = {
@@ -96,3 +92,16 @@ class RNNDecoder(Component, Configurable):
             return tf.contrib.seq2seq.SampleEmbeddingHelper(**helper_kwargs)
 
         raise ValueError('Unrecognized mode {!r}'.format(mode))
+
+    def _dynamic_decode(self, helper, initial_state, max_length=None):
+        decoder = tf.contrib.seq2seq.BasicDecoder(
+            cell=self.cell,
+            helper=helper,
+            initial_state=initial_state,
+            output_layer=self._output_projection)
+        output, _, _ = tf.contrib.seq2seq.dynamic_decode(
+            decoder=decoder,
+            output_time_major=False,
+            impute_finished=True,
+            maximum_iterations=max_length)
+        return output
