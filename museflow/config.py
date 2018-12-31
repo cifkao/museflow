@@ -12,13 +12,15 @@ class Configurable:
     def __init__(self, config=None):
         self._config_dict = config or {}
 
-    def _configure(self, config_key, constructor=None, _default=_NO_DEFAULT, **kwargs):
+    def _configure(self, config_key, constructor=None, **kwargs):
         if config_key not in self._subconfigs:
             raise RuntimeError('Key {} not defined in {}._subconfigs'.format(
                 config_key, type(self).__name__))
 
-        if _default is _NO_DEFAULT:
-            _default = {}
+        _default = {}
+        if '_default' in kwargs:
+            _default = kwargs['_default']
+            del kwargs['_default']
         config = self._get_config(config_key, _default)
 
         if config is None:
