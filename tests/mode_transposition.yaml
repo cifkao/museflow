@@ -17,8 +17,8 @@ decoder:
   max_length: 50
 
 trainer:
-  logging_period: 4
-  validation_period: 20
+  logging_period: 8
+  validation_period: 80
 
 train_data:
   src: data/modes_C4.pickle
@@ -27,6 +27,6 @@ val_data:
   src: data/modes_C4.pickle
   tgt: data/modes_A3.pickle
 data_prep:
-  num_epochs: 2
-  train_batch_size: 16
+  num_epochs: 6
+  train_batch_size: 20
   val_batch_size: 30

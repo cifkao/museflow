@@ -1,3 +1,4 @@
+import argparse
 import pickle
 
 import tensorflow as tf
@@ -101,6 +102,7 @@ class RNNGenerator(Configurable):
         subparsers = parser.add_subparsers(title='action', dest='action')
         subparsers.add_parser('train')
         subparser = subparsers.add_parser('sample')
+        subparser.add_argument('output_file', type=argparse.FileType('wb'), metavar='OUTPUTFILE')
         subparser.add_argument('--checkpoint', default=None, type=str)
         subparser.add_argument('--batch-size', default=1, type=int)
         subparser.add_argument('--softmax-temperature', default=1., type=float)
@@ -112,4 +114,4 @@ class RNNGenerator(Configurable):
             self.load(checkpoint_file=args.checkpoint)
             output = self.sample(batch_size=args.batch_size,
                                  softmax_temperature=args.softmax_temperature)
-            print(output)
+            pickle.dump(output, args.output_file)

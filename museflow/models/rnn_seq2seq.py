@@ -133,11 +133,13 @@ class RNNSeq2Seq(Configurable):
             output_types=(tf.int32, tf.int32, tf.int32),
             output_shapes=([None], [None], [None]),
             batch_size=batch_size)
-        outputs_tensor = self._sample_outputs if sample else self._greedy_outputs
+        _, output_ids_tensor = self._sample_outputs if sample else self._greedy_outputs
 
-        return self._dataset_manager.run_over_dataset(
-            self._session, outputs_tensor, dataset,
-            {self._softmax_temperature: softmax_temperature})
+        output_ids = self._dataset_manager.run_over_dataset(
+            self._session, output_ids_tensor, dataset,
+            feed_dict={self._softmax_temperature: softmax_temperature},
+            stack_batches=True)
+        return [self._encoding.decode(seq) for seq in output_ids]
 
     @classmethod
     def from_args(cls, args, config, logdir):

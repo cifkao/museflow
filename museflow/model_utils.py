@@ -1,4 +1,3 @@
-import numpy as np
 import tensorflow as tf
 
 
@@ -62,7 +61,7 @@ class DatasetManager:
             feed_dict[self._handle_placeholder] = self._handles[dataset_name]
         return session.run(ops, feed_dict)
 
-    def run_over_dataset(self, session, ops, dataset, feed_dict=None, batch_axis=None):
+    def run_over_dataset(self, session, ops, dataset, feed_dict=None, stack_batches=False):
         if isinstance(dataset, str):
             dataset_name = dataset
         else:
@@ -78,12 +77,14 @@ class DatasetManager:
             except tf.errors.OutOfRangeError:
                 break
 
-        if batch_axis is not None:
-            # Flatten the structure of each item, concatenate the corresponding elements along
-            # the batch axis and restore the structure.
+        if stack_batches:
+            # Flatten the structure of each batch, stack the corresponding elements and restore
+            # the structure.
             structure = results[0]
             results_flat = [tf.contrib.framework.nest.flatten(r) for r in results]
-            results_flat = [np.concatenate(r, axis=batch_axis) for r in zip(*results_flat)]
+            # We do not use np.concatenate since the shapes of the batches might be incompatible.
+            # Instead, we stack the items of all batches in a list.
+            results_flat = [[x for batch in r for x in batch] for r in zip(*results_flat)]
             results = tf.contrib.framework.nest.pack_sequence_as(structure, results_flat)
 
         if dataset_name == '__tmp':
