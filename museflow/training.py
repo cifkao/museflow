@@ -8,6 +8,7 @@ from museflow.config import Configurable
 
 
 class BasicTrainer(Configurable):
+    """A class implementing a basic training/validation loop, model saving and model loading."""
     _subconfigs = ['latest_saver', 'best_saver']
 
     def __init__(self, dataset_manager, logdir, logging_period, validation_period, session=None,

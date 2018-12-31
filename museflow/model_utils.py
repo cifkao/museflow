@@ -2,6 +2,7 @@ import tensorflow as tf
 
 
 def create_train_op(optimizer, loss, variables, max_gradient_norm=None, name='training'):
+    """Create a training op."""
     global_step = tf.train.get_or_create_global_step()
     with tf.variable_scope(name):
         grads_and_vars = optimizer.compute_gradients(loss, variables)
@@ -11,6 +12,7 @@ def create_train_op(optimizer, loss, variables, max_gradient_norm=None, name='tr
 
 
 def clip_gradients(grads_and_vars, max_gradient_norm):
+    """Perform gradient clipping by global norm."""
     if max_gradient_norm is None:
         return grads_and_vars
 
@@ -20,6 +22,12 @@ def clip_gradients(grads_and_vars, max_gradient_norm):
 
 
 class DatasetManager:
+    """A class for managing TensorFlow datasets.
+
+    A `DatasetManager` objects holds a collection of datasets (typically, a training set and a
+    validation set) and their iterators and takes care of switching between them when running
+    TensorFlow ops.
+    """
 
     def __init__(self, output_types=None, output_shapes=None):
         self._output_types = output_types
@@ -32,6 +40,15 @@ class DatasetManager:
         self._global_iterator = None
 
     def add_dataset(self, name, dataset, one_shot=False):
+        """Add a new dataset to the collection.
+
+        Args:
+            name: A name for the dataset (e.g. `'train'`, `'val'`).
+            dataset: An instance of `tf.data.Dataset`.
+            one_shot: If `True`, a one-shot iterator will be used (appropriate for training
+                datasets); if `False` (default), an initializable iterator will be used
+                (requiring to call `initialize_dataset`).
+        """
         self.datasets[name] = dataset
         if one_shot:
             self._iterators[name] = dataset.make_one_shot_iterator()
@@ -44,14 +61,27 @@ class DatasetManager:
             self._output_shapes = dataset.output_shapes
 
     def remove_dataset(self, name):
+        """Remove the given dataset from the collection."""
         del self.datasets[name]
         del self._iterators[name]
         del self._handles[name]
 
     def initialize_dataset(self, session, name):
+        """Initialize the given dataset's iterator."""
         session.run(self._iterators[name].initializer)
 
-    def run(self, session, ops, dataset_name=None, feed_dict=None):
+    def run(self, session, fetches, dataset_name=None, feed_dict=None):
+        """Run the given TensorFlow ops while using the chosen dataset.
+
+        Args:
+            session: A TensorFlow `Session`.
+            fetches: The `fetches` to pass to `session.run`.
+            dataset_name: The name of the dataset to use. If `None` (default), no dataset will be
+                used.
+            feed_dict: The `feed_dict` to pass to `session.run`.
+        Returns:
+            The return value of `session.run`.
+        """
         if feed_dict is None:
             feed_dict = {}
         if dataset_name is not None:
@@ -59,9 +89,21 @@ class DatasetManager:
                 iterator = self._iterators[dataset_name]
                 self._handles[dataset_name] = session.run(iterator.string_handle())
             feed_dict[self._handle_placeholder] = self._handles[dataset_name]
-        return session.run(ops, feed_dict)
+        return session.run(fetches, feed_dict)
 
-    def run_over_dataset(self, session, ops, dataset, feed_dict=None, stack_batches=False):
+    def run_over_dataset(self, session, fetches, dataset, feed_dict=None, stack_batches=False):
+        """Run the given TensorFlow ops while iterating over an entire dataset.
+
+        Args:
+            session: A TensorFlow `Session`.
+            fetches: The `fetches` to pass to `session.run`.
+            dataset: The name of the dataset to use, or a new `tf.data.Dataset`.
+            feed_dict: The `feed_dict` to pass to `session.run`.
+            stack_batches: If `True`, the results will be concatenated along the first dimension.
+        Returns:
+            If `stack_batches` is `False`, a list of results of `session.run`; if `stack_batches` is
+            `True`, a list (or a nested structure of lists) obtained by concatenating all batches.
+        """
         if isinstance(dataset, str):
             dataset_name = dataset
         else:
@@ -73,7 +115,7 @@ class DatasetManager:
         results = []
         while True:
             try:
-                results.append(self.run(session, ops, dataset_name, feed_dict=feed_dict))
+                results.append(self.run(session, fetches, dataset_name, feed_dict=feed_dict))
             except tf.errors.OutOfRangeError:
                 break
 
@@ -93,6 +135,7 @@ class DatasetManager:
         return results
 
     def get_batch(self):
+        """Return a nested struture of tensors representing the next element of a dataset."""
         if self._global_iterator is None:
             self._global_iterator = tf.data.Iterator.from_string_handle(
                 self._handle_placeholder, self._output_types, self._output_shapes)
@@ -102,7 +145,7 @@ class DatasetManager:
 def prepare_train_and_val_data(train_generator, val_generator, output_types, output_shapes,
                                train_batch_size, val_batch_size, shuffle_buffer_size=100000,
                                num_epochs=None, dataset_manager=None):
-    """A utility function to prepare a DatasetManager with training and validation data."""
+    """Prepare a DatasetManager with training and validation data."""
     with tf.name_scope('train'):
         train_dataset = tf.data.Dataset.from_generator(train_generator, output_types)
         train_dataset = train_dataset.shuffle(
@@ -121,7 +164,7 @@ def prepare_train_and_val_data(train_generator, val_generator, output_types, out
 
 
 def make_simple_dataset(generator, output_types, output_shapes, batch_size=None, name='dataset'):
-    """A utility function to create a simple validation or test dataset."""
+    """Create a simple validation or test dataset."""
     with tf.name_scope(name):
         dataset = tf.data.Dataset.from_generator(generator, output_types)
         if batch_size is not None:

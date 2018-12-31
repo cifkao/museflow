@@ -7,12 +7,47 @@ _NO_DEFAULT = object()
 
 
 class Configurable:
+    """A base class for configurable objects.
+
+    Every subclass of `Configurable` should accept a `config` argument in its `__init__` method and
+    pass it to `Configurable`. The subclass may also define the `_subconfigs` class attribute to
+    list objects that can be configured via this config dict. An example:
+
+    ```
+    class MyModel(Configurable):
+        _subconfigs = ['encoder', 'decoder']
+
+        def __init__(self, config=None):
+            Configurable.__init__(self, config)
+
+            encoder = self._configure('encoder', MyEncoder)
+            decoder = self._configure('decoder', MyDecoder)
+    ```
+
+    In this example, calling `self._configure('encoder', MyEncoder)` will construct an instance of
+    the `MyEncoder` class with the keyword arguments given in `config['encoder']`.
+    """
+
     _subconfigs = []
 
     def __init__(self, config=None):
         self._config_dict = config or {}
 
     def _configure(self, config_key, constructor=None, **kwargs):
+        """Configure an object using a given key from the config dict.
+
+        Calls `constructor` with the keyword arguments specified in `config[config_key]`. Note that
+        the constructor is called even if `config_key` is not present in `config`.
+
+        Args:
+            config_key: A key specified in `_subconfigs`.
+            constructor: A callable that constructs the object. Can be overridden by a `class` key
+                in the config dict.
+            **kwargs: Default keyword arguments to pass to the constructor. Can be overridden by
+                values in the config dict.
+        Returns:
+            The return value of `constructor`, or `None` if `config[config_key]` is `None`.
+        """
         if config_key not in self._subconfigs:
             raise RuntimeError('Key {} not defined in {}._subconfigs'.format(
                 config_key, type(self).__name__))
@@ -59,15 +94,31 @@ class Configurable:
             )).with_traceback(sys.exc_info()[2]) from None
 
     def _maybe_configure(self, config_key, constructor=None, **kwargs):
+        """Configure an object using a given key only if the key is present in the config dict.
+
+        Like `_configure`, but returns `None` if the key is not present.
+        """
         return self._configure(config_key, constructor, _default=None, **kwargs)
 
     def _get_config(self, key, default=_NO_DEFAULT):
+        """Retrieve a given key from the config dict."""
         if default is _NO_DEFAULT:
             return self._config_dict[key]
         return self._config_dict.get(key, default)
 
     @classmethod
     def from_config(cls, config, *args, **kwargs):
+        """Construct an instance of this class from a given config dict.
+
+        Args:
+            config: A config dict containing keyword arguments for the `__init__` method and keys
+                listed in `_subconfigs`.
+            *args: Positional arguments to the `__init__` method.
+            **kwargs: Default keyword arguments to the `__init__` method. Can be overridden by
+                values in `config`.
+        Returns:
+            The created instance.
+        """
         kwargs = dict(kwargs)
         kwargs.update({k: v for k, v in config.items() if k not in cls._subconfigs})
         config = {k: v for k, v in config.items() if k in cls._subconfigs}
