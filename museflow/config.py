@@ -49,10 +49,8 @@ class Configurable:
             if isinstance(constructor, type) and issubclass(constructor, Configurable):
                 return constructor.from_config(config_dict, **kwargs)
 
-            kwargs = dict(kwargs)
-            kwargs.update(config_dict)
-            _log_call(constructor, **kwargs)
-            return constructor(**kwargs)
+            _log_call(constructor, **kwargs, **config_dict)
+            return constructor(**kwargs, **config_dict)
         except TypeError as e:
             raise ConfigError('{} while configuring {} ({!r}): {}'.format(
                 type(e).__name__, config_key, constructor, e
