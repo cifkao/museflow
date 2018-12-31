@@ -14,8 +14,9 @@ jobs:
         - pip install pylint
       script:
         - pylint museflow
-    - name: 'pycodestyle'
+    - name: 'Code style'
       install:
-        - pip install pycodestyle
+        - pip install pycodestyle pydocstyle
       script:
         - pycodestyle museflow
+        - pydocstyle museflow
