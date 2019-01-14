@@ -1,9 +1,13 @@
 import tensorflow as tf
 
 
-def create_train_op(optimizer, loss, variables, max_gradient_norm=None, name='training'):
+def create_train_op(optimizer, loss, variables=None, max_gradient_norm=None, name='training'):
     """Create a training op."""
     global_step = tf.train.get_or_create_global_step()
+
+    if variables is None:
+        variables = tf.trainable_variables()
+
     with tf.variable_scope(name):
         grads_and_vars = optimizer.compute_gradients(loss, variables)
         return optimizer.apply_gradients(

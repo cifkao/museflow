@@ -69,8 +69,7 @@ class RNNGenerator(Configurable):
     def _make_train_ops(self):
         train_op = create_train_op(
             self._configure('optimizer', tf.train.AdamOptimizer),
-            self._loss,
-            self._decoder.trainable_variables)
+            self._loss)
         init_op = tf.global_variables_initializer()
 
         tf.summary.scalar('train/loss', self._loss)
