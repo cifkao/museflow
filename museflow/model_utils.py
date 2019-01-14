@@ -1,5 +1,7 @@
 import tensorflow as tf
 
+from museflow import logger
+
 
 def create_train_op(optimizer, loss, variables=None, max_gradient_norm=None, name='training'):
     """Create a training op."""
@@ -7,6 +9,9 @@ def create_train_op(optimizer, loss, variables=None, max_gradient_norm=None, nam
 
     if variables is None:
         variables = tf.trainable_variables()
+
+    logger.info("'{}' op trains {} variables:\n\n{}\n".format(
+        name, len(variables), summarize_variables(variables)))
 
     with tf.variable_scope(name):
         grads_and_vars = optimizer.compute_gradients(loss, variables)
@@ -23,6 +28,20 @@ def clip_gradients(grads_and_vars, max_gradient_norm):
     gradients, variables = zip(*grads_and_vars)
     clipped_gradients, _ = tf.clip_by_global_norm(gradients, max_gradient_norm)
     return zip(clipped_gradients, variables)
+
+
+def summarize_variables(variables):
+    """Return a string with a table of names and shapes of the given variables."""
+    cols = [['Name'], ['Shape']]
+    for var in variables:
+        shape = var.get_shape().as_list()
+        cols[0].append(var.name)
+        cols[1].append(str(shape))
+    widths = [max(len(x) for x in col) for col in cols]
+
+    lines = ['  '.join(text.ljust(widths[i]) for i, text in enumerate(row)) for row in zip(*cols)]
+    lines.insert(1, '  '.join('-' * w for w in widths))
+    return '\n'.join(lines)
 
 
 class DatasetManager:
