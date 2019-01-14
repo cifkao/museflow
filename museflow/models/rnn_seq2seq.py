@@ -45,7 +45,8 @@ class RNNSeq2Seq(Configurable):
         encoder = self._configure('encoder', RNNEncoder)
         encoder_states, encoder_final_state = encoder.encode(embeddings.embed(inputs))
 
-        attention = self._maybe_configure('attention_mechanism', memory=encoder_states)
+        with tf.variable_scope('attention'):
+            attention = self._maybe_configure('attention_mechanism', memory=encoder_states)
         self._decoder = self._configure('decoder', RNNDecoder,
                                         vocabulary=vocabulary,
                                         embedding_layer=embeddings,
@@ -55,7 +56,8 @@ class RNNSeq2Seq(Configurable):
         decoder_initial_state = None
         if not attention:
             state_projection = self._configure('state_projection', tf.layers.Dense,
-                                               units=self._decoder.cell.state_size)
+                                               units=self._decoder.cell.state_size,
+                                               name='state_projection')
             decoder_initial_state = state_projection(encoder_final_state)
 
         # Build the training version of the decoder and the training ops
