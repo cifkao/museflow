@@ -143,6 +143,7 @@ disable=C,
         exception-escape,
         comprehension-escape,
         logging-format-interpolation,
+        logging-fstring-interpolation,
         missing-type-doc,
         missing-return-type-doc,
         parameter_documentation  # pylint.extensions.docparams
