@@ -3,20 +3,19 @@ import pickle
 
 import tensorflow as tf
 
-from museflow.config import Configurable
 from museflow.components import RNNDecoder, EmbeddingLayer
 from museflow.model_utils import DatasetManager, create_train_op, prepare_train_and_val_data
 from museflow.training import BasicTrainer
+from .model import Model
 
 
-class RNNGenerator(Configurable):
+class RNNGenerator(Model):
     _subconfigs = ['data_prep', 'encoding', 'embedding_layer', 'decoder', 'trainer', 'optimizer']
 
     def __init__(self, logdir, train_mode, config=None, **kwargs):
-        Configurable.__init__(self, config)
+        Model.__init__(self, config=config, **kwargs)
         self._train_mode = train_mode
         self._logdir = logdir
-        self._args = kwargs
 
         self._encoding = self._configure('encoding')
 

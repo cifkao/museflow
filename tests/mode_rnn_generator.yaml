@@ -22,3 +22,5 @@ data_prep:
   num_epochs: 2
   train_batch_size: 16
   val_batch_size: 30
+
+random_seed: 1234
