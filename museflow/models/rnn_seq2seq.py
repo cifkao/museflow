@@ -3,6 +3,7 @@ import pickle
 
 import tensorflow as tf
 
+from museflow import logger
 from museflow.components import EmbeddingLayer, RNNEncoder, RNNDecoder
 from museflow.model_utils import (DatasetManager, create_train_op, prepare_train_and_val_data,
                                   make_simple_dataset)
