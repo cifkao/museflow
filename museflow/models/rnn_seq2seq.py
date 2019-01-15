@@ -69,7 +69,8 @@ class RNNSeq2Seq(Model):
         self._sample_outputs = self._decoder.decode(mode='sample',
                                                     softmax_temperature=self._softmax_temperature,
                                                     initial_state=decoder_initial_state,
-                                                    batch_size=batch_size)
+                                                    batch_size=batch_size,
+                                                    random_seed=self._args['sampling_seed'])
         self._greedy_outputs = self._decoder.decode(mode='greedy',
                                                     initial_state=decoder_initial_state,
                                                     batch_size=batch_size)
@@ -142,7 +143,9 @@ class RNNSeq2Seq(Model):
 
     @classmethod
     def from_args(cls, args):
-        return cls.from_yaml(args.logdir, args.config, train_mode=(args.action == 'train'))
+        return cls.from_yaml(args.logdir, args.config,
+                             train_mode=(args.action == 'train'),
+                             sampling_seed=args.sampling_seed if args.action == 'run' else None)
 
     @classmethod
     def setup_argparser(cls, parser):
@@ -155,6 +158,7 @@ class RNNSeq2Seq(Model):
         subparser.add_argument('--batch-size', default=32, type=int)
         subparser.add_argument('--sample', action='store_true')
         subparser.add_argument('--softmax-temperature', default=1., type=float)
+        subparser.add_argument('--seed', default=None, type=int, dest='sampling_seed')
 
     def run_action(self, args):
         if args.action == 'train':

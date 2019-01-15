@@ -46,7 +46,8 @@ class RNNGenerator(Model):
         self._softmax_temperature = tf.placeholder(tf.float32, [], name='softmax_temperature')
         self._sample_outputs = self._decoder.decode(mode='sample',
                                                     batch_size=self._sample_batch_size,
-                                                    softmax_temperature=self._softmax_temperature)
+                                                    softmax_temperature=self._softmax_temperature,
+                                                    random_seed=self._args['sampling_seed'])
 
         self._session = tf.Session()
         self._trainer = self._configure('trainer', BasicTrainer,
@@ -91,7 +92,9 @@ class RNNGenerator(Model):
 
     @classmethod
     def from_args(cls, args):
-        return cls.from_yaml(args.logdir, args.config, train_mode=(args.action == 'train'))
+        return cls.from_yaml(args.logdir, args.config,
+                             train_mode=(args.action == 'train'),
+                             sampling_seed=args.sampling_seed if args.action == 'sample' else None)
 
     @classmethod
     def setup_argparser(cls, parser):
@@ -102,6 +105,7 @@ class RNNGenerator(Model):
         subparser.add_argument('--checkpoint', default=None, type=str)
         subparser.add_argument('--batch-size', default=1, type=int)
         subparser.add_argument('--softmax-temperature', default=1., type=float)
+        subparser.add_argument('--seed', default=None, type=int, dest='sampling_seed')
 
     def run_action(self, args):
         if args.action == 'train':

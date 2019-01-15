@@ -64,7 +64,7 @@ class RNNDecoder(Component, Configurable):
 
     @using_scope
     def decode(self, initial_state=None, max_length=None, batch_size=None,
-               softmax_temperature=1., mode='greedy'):
+               softmax_temperature=1., random_seed=None, mode='greedy'):
         with tf.name_scope('decode_{}'.format(mode)):
             if batch_size is None:
                 batch_size = tf.shape(initial_state)[0]
@@ -73,11 +73,11 @@ class RNNDecoder(Component, Configurable):
                                                      dtype=tf.float32)
 
         return self._dynamic_decode(
-            helper=self._make_helper(batch_size, softmax_temperature, mode),
+            helper=self._make_helper(batch_size, softmax_temperature, random_seed, mode),
             initial_state=initial_state,
             max_length=max_length or self._max_length)
 
-    def _make_helper(self, batch_size, softmax_temperature, mode):
+    def _make_helper(self, batch_size, softmax_temperature, random_seed, mode):
         helper_kwargs = {
             'embedding': self._embeddings.embedding_matrix,
             'start_tokens': tf.tile([self._vocabulary.start_id], [batch_size]),
@@ -88,6 +88,7 @@ class RNNDecoder(Component, Configurable):
             return tf.contrib.seq2seq.GreedyEmbeddingHelper(**helper_kwargs)
         if mode == 'sample':
             helper_kwargs['softmax_temperature'] = softmax_temperature
+            helper_kwargs['seed'] = random_seed
             return tf.contrib.seq2seq.SampleEmbeddingHelper(**helper_kwargs)
 
         raise ValueError('Unrecognized mode {!r}'.format(mode))
