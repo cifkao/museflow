@@ -101,7 +101,11 @@ class RNNSeq2Seq(Model):
 
                 # Get the target segment corresponding to this source segment.
                 # If targets are not available, feed an empty sequence.
-                tgt_notes = tgt_data[segment_id] if tgt_data else []
+                try:
+                    tgt_notes = tgt_data[segment_id] if tgt_data else []
+                except KeyError as e:
+                    logger.warning(f'KeyError: {e}')
+                    continue
 
                 src_encoded = self._encoding.encode(src_notes, add_start=False, add_end=False)
                 tgt_encoded = self._encoding.encode(tgt_notes, add_start=True, add_end=True)
