@@ -15,9 +15,8 @@ class RNNSeq2Seq(Model):
                    'state_projection', 'decoder', 'attention_mechanism', 'optimizer']
 
     def __init__(self, logdir, train_mode, config=None, **kwargs):
-        Model.__init__(self, config=config, **kwargs)
+        Model.__init__(self, logdir=logdir, config=config, **kwargs)
         self._train_mode = train_mode
-        self._logdir = logdir
 
         self._encoding = self._configure('encoding')
 
@@ -142,9 +141,8 @@ class RNNSeq2Seq(Model):
         return [self._encoding.decode(seq) for seq in output_ids]
 
     @classmethod
-    def from_args(cls, args, config, logdir):
-        return cls.from_config(
-            config, logdir=logdir, train_mode=(args.action == 'train'))
+    def from_args(cls, args):
+        return cls.from_yaml(args.logdir, args.config, train_mode=(args.action == 'train'))
 
     @classmethod
     def setup_argparser(cls, parser):

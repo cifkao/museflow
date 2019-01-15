@@ -1,16 +1,20 @@
+import os
 import random
 
 import numpy as np
 import tensorflow as tf
+import yaml
 
+from museflow import logger
 from museflow.config import Configurable
 
 
 class Model(Configurable):
     """A base class for models."""
 
-    def __init__(self, config=None, **kwargs):
+    def __init__(self, logdir, config=None, **kwargs):
         Configurable.__init__(self, config)
+        self._logdir = logdir
         self._args = kwargs
 
         tf.reset_default_graph()
@@ -21,3 +25,26 @@ class Model(Configurable):
             self._graph.seed = seed
             random.seed(seed)
             np.random.seed(seed)
+
+    @classmethod
+    def from_yaml(cls, logdir, config_file=None, **kwargs):
+        """Construct the model from a given YAML config file.
+
+        Args:
+            logdir: The path to the log directory of the model.
+            config_file: A path to a configuration file or an open file object. If not given,
+                the file 'model.yaml' in the log directory will be used instead.
+            **kwargs: Keyword arguments to the model's `__init__` method.
+        Returns:
+            The model object.
+        """
+        if config_file is None:
+            config_file = os.path.join(logdir, 'model.yaml')
+
+        if isinstance(config_file, str):
+            with open(config_file, 'rb') as f:
+                return cls.from_yaml(logdir, config_file=f, **kwargs)
+
+        config = yaml.load(config_file)
+        logger.debug(config)
+        return cls.from_config(config, logdir=logdir, **kwargs)

@@ -2,7 +2,6 @@ import argparse
 import sys
 
 import coloredlogs
-import yaml
 
 from museflow import scripts, models, logger
 
@@ -36,15 +35,11 @@ def _add_model_argparsers(subparsers):
     for model_class in models.MODELS:
         subparser = subparsers.add_parser(model_class.__name__, description=model_class.__doc__)
         subparser.set_defaults(model_class=model_class)
-        subparser.add_argument('--config', type=str, required=True,
-                               help='path to the YAML configuration file')
+        subparser.add_argument('--config', type=str, help='path to the YAML configuration file')
         subparser.add_argument('--logdir', type=str, required=True, help='model directory')
         model_class.setup_argparser(subparser)
 
 
 def _run_model(args):
-    with open(args.config, 'rb') as f:
-        config = yaml.load(f)
-        logger.debug(config)
-    model = args.model_class.from_args(args, config, logdir=args.logdir)
+    model = args.model_class.from_args(args)
     model.run_action(args)
