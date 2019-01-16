@@ -176,7 +176,7 @@ class _ConfigurableFunction:
 def _log_call(fn, *args, **kwargs):
     if isinstance(fn, type) and issubclass(fn, _ConfigurableFunction.Configurator):
         return
-    args_and_kwargs = [f'{a}' for a in args] + [f'{k}={v!r}' for k, v in kwargs.items()]
+    args_and_kwargs = [f'{a!r}' for a in args] + [f'{k}={v!r}' for k, v in kwargs.items()]
     logger.debug('Calling {}({})'.format(fn.__name__, ', '.join(args_and_kwargs)))
 
 
