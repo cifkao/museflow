@@ -1,3 +1,4 @@
+import functools
 import sys
 
 from museflow import logger
@@ -82,8 +83,9 @@ class Configurable:
             )).with_traceback(sys.exc_info()[2]) from None
 
         try:
-            # If it's a class which is a subclass of Configurable...
-            if isinstance(constructor, type) and issubclass(constructor, Configurable):
+            # If it's a class which is a subclass of Configurable or if it's a configurable function
+            if ((isinstance(constructor, type) and issubclass(constructor, Configurable)) or
+                    isinstance(constructor, _ConfigurableFunction)):
                 return constructor.from_config(config_dict, **kwargs)
 
             _log_call(constructor, **kwargs, **config_dict)
@@ -125,6 +127,50 @@ class Configurable:
 
         _log_call(cls, *args, **kwargs)
         return cls(*args, **kwargs, config=config)
+
+
+def configurable(subconfigs=None):
+    """Return a decorator that makes a function configurable.
+
+    The wrapped (decorated) function should have an extra first argument `cfg`. It is then possible
+    to call `cfg.configure` or `cfg.maybe_configure` in the body of the function. The function can
+    be used in the same way as a configurable type or called normally (without the `cfg` argument).
+
+    Args:
+        subconfigs: A list of objects that can be configured via the configuration mechanism.
+    Returns:
+        The decorator.
+    """
+    return functools.partial(_ConfigurableFunction, subconfigs=subconfigs)
+
+
+class _ConfigurableFunction:
+
+    def __init__(self, function, subconfigs):
+        self._function = function
+        functools.update_wrapper(self, self._function)
+
+        # We need to create a new Configurable type so that we can set its _subconfigs
+        self._configurator = type(self._function.__name__ + '__cfg',
+                                  (self._Configurator,),
+                                  dict(_subconfigs=subconfigs))
+
+    def __call__(self, *args, **kwargs):
+        return self._function(self._configurator(), *args, **kwargs)
+
+    def from_config(self, config, *args, **kwargs):
+        cfg = self._configurator.from_config(config, *args, **kwargs)
+        _log_call(self._function, *args, **kwargs)
+        return self._function(cfg, *cfg.fn_args, **cfg.fn_kwargs)
+
+    class _Configurator(Configurable):
+
+        def __init__(self, *args, config=None, **kwargs):
+            Configurable.__init__(self, config)
+            self.fn_args = args
+            self.fn_kwargs = kwargs
+            self.configure = self._configure
+            self.maybe_configure = self._maybe_configure
 
 
 def _log_call(fn, *args, **kwargs):
