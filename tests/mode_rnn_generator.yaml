@@ -12,6 +12,11 @@ decoder:
     num_units: 300
   max_length: 50
 
+training:
+  optimizer:
+    class: !!python/name:tensorflow.train.GradientDescentOptimizer
+    learning_rate: 2.0e-3
+  max_gradient_norm: 0.1
 trainer:
   logging_period: 4
   validation_period: 20

@@ -1,11 +1,17 @@
 import tensorflow as tf
 
 from museflow import logger
+from museflow.config import configurable
 
 
-def create_train_op(optimizer, loss, variables=None, max_gradient_norm=None, name='training'):
+@configurable(['optimizer'])
+def create_train_op(cfg, loss, optimizer=None, variables=None, max_gradient_norm=None,
+                    name='training'):
     """Create a training op."""
     global_step = tf.train.get_or_create_global_step()
+
+    if optimizer is None:
+        optimizer = cfg.configure('optimizer', tf.train.AdamOptimizer)
 
     if variables is None:
         variables = tf.trainable_variables()

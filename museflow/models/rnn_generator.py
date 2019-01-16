@@ -10,7 +10,7 @@ from .model import Model
 
 
 class RNNGenerator(Model):
-    _subconfigs = ['data_prep', 'encoding', 'embedding_layer', 'decoder', 'trainer', 'optimizer']
+    _subconfigs = ['data_prep', 'encoding', 'embedding_layer', 'decoder', 'trainer', 'training']
 
     def __init__(self, logdir, train_mode, config=None, **kwargs):
         Model.__init__(self, logdir=logdir, config=config, **kwargs)
@@ -66,9 +66,7 @@ class RNNGenerator(Model):
         return generator
 
     def _make_train_ops(self):
-        train_op = create_train_op(
-            self._configure('optimizer', tf.train.AdamOptimizer),
-            self._loss)
+        train_op = self._configure('training', create_train_op, loss=self._loss)
         init_op = tf.global_variables_initializer()
 
         tf.summary.scalar('train/loss', self._loss)
