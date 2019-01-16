@@ -152,7 +152,7 @@ class _ConfigurableFunction:
 
         # We need to create a new Configurable type so that we can set its _subconfigs
         self._configurator = type(self._function.__name__ + '__cfg',
-                                  (self._Configurator,),
+                                  (self.Configurator,),
                                   dict(_subconfigs=subconfigs))
 
     def __call__(self, *args, **kwargs):
@@ -163,7 +163,7 @@ class _ConfigurableFunction:
         _log_call(self._function, *args, **kwargs)
         return self._function(cfg, *cfg.fn_args, **cfg.fn_kwargs)
 
-    class _Configurator(Configurable):
+    class Configurator(Configurable):
 
         def __init__(self, *args, config=None, **kwargs):
             Configurable.__init__(self, config)
@@ -174,6 +174,8 @@ class _ConfigurableFunction:
 
 
 def _log_call(fn, *args, **kwargs):
+    if isinstance(fn, type) and issubclass(fn, _ConfigurableFunction.Configurator):
+        return
     args_and_kwargs = [f'{a}' for a in args] + [f'{k}={v!r}' for k, v in kwargs.items()]
     logger.debug('Calling {}({})'.format(fn.__name__, ', '.join(args_and_kwargs)))
 
