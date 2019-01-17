@@ -29,7 +29,7 @@ class Configurable:
     the `MyEncoder` class with the keyword arguments given in `config['encoder']`.
     """
 
-    _subconfigs = []
+    _subconfigs = ()
 
     def __init__(self, config=None):
         self._config_dict = config or {}
@@ -129,10 +129,10 @@ class Configurable:
         return cls(*args, **kwargs, config=config)
 
 
-def configurable(subconfigs=None):
-    """Return a decorator that makes a function configurable.
+def configurable(subconfigs=()):
+    """Return a decorator that makes a function or a class configurable.
 
-    The wrapped (decorated) function should have an extra first argument `cfg`. It is then possible
+    A wrapped (decorated) function should have an extra first argument `cfg`. It is then possible
     to call `cfg.configure` or `cfg.maybe_configure` in the body of the function. The function can
     be used in the same way as a configurable type or called normally (without the `cfg` argument).
 
@@ -141,7 +141,20 @@ def configurable(subconfigs=None):
     Returns:
         The decorator.
     """
-    return functools.partial(_ConfigurableFunction, subconfigs=subconfigs)
+    def decorator(func):
+        if isinstance(func, type):
+            if issubclass(func, Configurable):
+                func._subconfigs = (*func._subconfigs, *subconfigs)  # pylint: disable=protected-access
+                return func
+            else:
+                wrapper = type(func.__name__,
+                               (func, Configurable),
+                               dict(_subconfigs=(*subconfigs,)))
+                return functools.update_wrapper(wrapper, func, updated=())
+        else:
+            return _ConfigurableFunction(func, subconfigs)
+
+    return decorator
 
 
 class _ConfigurableFunction:

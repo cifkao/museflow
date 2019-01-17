@@ -5,15 +5,16 @@ import tensorflow as tf
 
 from museflow import logger
 from museflow.components import EmbeddingLayer, RNNEncoder, RNNDecoder
+from museflow.config import configurable
 from museflow.model_utils import (DatasetManager, create_train_op, prepare_train_and_val_data,
                                   make_simple_dataset)
 from museflow.training import BasicTrainer
 from .model import Model
 
 
+@configurable(['data_prep', 'encoding', 'trainer', 'embedding_layer', 'encoder',
+               'state_projection', 'decoder', 'attention_mechanism', 'training'])
 class RNNSeq2Seq(Model):
-    _subconfigs = ['data_prep', 'encoding', 'trainer', 'embedding_layer', 'encoder',
-                   'state_projection', 'decoder', 'attention_mechanism', 'training']
 
     def __init__(self, logdir, train_mode, config=None, **kwargs):
         Model.__init__(self, logdir=logdir, config=config, **kwargs)

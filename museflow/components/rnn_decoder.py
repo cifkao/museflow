@@ -1,11 +1,11 @@
 import tensorflow as tf
 
-from museflow.config import Configurable
+from museflow.config import Configurable, configurable
 from .component import Component, using_scope
 
 
+@configurable(['cell', 'output_projection', 'attention_wrapper'])
 class RNNDecoder(Component, Configurable):
-    _subconfigs = ['cell', 'output_projection', 'attention_wrapper']
 
     def __init__(self, vocabulary, embedding_layer, attention_mechanism=None, max_length=None,
                  name='decoder', config=None):

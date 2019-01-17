@@ -4,13 +4,12 @@ import numpy as np
 import tensorflow as tf
 
 from museflow import logger
-from museflow.config import Configurable
+from museflow.config import Configurable, configurable
 
 
+@configurable(['latest_saver', 'best_saver'])
 class BasicTrainer(Configurable):
     """A class implementing a basic training/validation loop, model saving and model loading."""
-
-    _subconfigs = ['latest_saver', 'best_saver']
 
     def __init__(self, dataset_manager, logdir, logging_period, validation_period, session=None,
                  train_dataset_name='train', val_dataset_name='val', config=None):

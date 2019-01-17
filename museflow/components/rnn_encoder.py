@@ -1,11 +1,11 @@
 import tensorflow as tf
 
-from museflow.config import Configurable
+from museflow.config import Configurable, configurable
 from .component import Component, using_scope
 
 
+@configurable(['forward_cell', 'backward_cell'])
 class RNNEncoder(Component, Configurable):
-    _subconfigs = ['forward_cell', 'backward_cell']
 
     def __init__(self, name='encoder', config=None):
         Component.__init__(self, name=name)
