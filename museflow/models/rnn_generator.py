@@ -9,6 +9,7 @@ from museflow.model_utils import DatasetManager, create_train_op, prepare_train_
 from museflow.training import BasicTrainer
 from .model import Model
 
+
 @configurable(['data_prep', 'encoding', 'embedding_layer', 'decoder', 'trainer', 'training'])
 class RNNGenerator(Model):
 
