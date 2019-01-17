@@ -3,7 +3,7 @@ import setuptools
 setuptools.setup(
     name="museflow",
     author="Ondřej Cífka",
-    description="A music sequence learning framework",
+    description="Music sequence learning toolkit",
     packages=['museflow'],
     entry_points={
         'console_scripts': [
