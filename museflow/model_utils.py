@@ -4,14 +4,20 @@ from museflow import logger
 from museflow.config import configurable
 
 
-@configurable(['optimizer'])
+@configurable(['optimizer', 'lr_decay'])
 def create_train_op(cfg, loss, optimizer=None, variables=None, max_gradient_norm=None,
                     name='training'):
     """Create a training op."""
     global_step = tf.train.get_or_create_global_step()
 
     if optimizer is None:
-        optimizer = cfg.configure('optimizer', tf.train.AdamOptimizer)
+        opt_args = {}
+        learning_rate = cfg.maybe_configure('lr_decay', global_step=global_step)
+        if learning_rate is not None:
+            opt_args['learning_rate'] = learning_rate
+            tf.summary.scalar('learning_rate', learning_rate, family='train')
+
+        optimizer = cfg.configure('optimizer', tf.train.AdamOptimizer, **opt_args)
 
     if variables is None:
         variables = tf.trainable_variables()

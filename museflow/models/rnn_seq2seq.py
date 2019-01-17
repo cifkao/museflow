@@ -120,7 +120,7 @@ class RNNSeq2Seq(Model):
         init_op = tf.global_variables_initializer()
 
         tf.summary.scalar('train/loss', self._loss)
-        train_summary_op = tf.summary.merge_all(scope='train')
+        train_summary_op = tf.summary.merge_all()
 
         return init_op, train_op, train_summary_op
 
