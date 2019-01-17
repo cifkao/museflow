@@ -16,6 +16,12 @@ decoder:
     num_units: 300
   max_length: 50
 
+training:
+  lr_decay:
+    class: !!python/name:tensorflow.train.exponential_decay
+    learning_rate: 1.0e-3
+    decay_steps: 10
+    decay_rate: 0.5
 trainer:
   logging_period: 8
   validation_period: 80
