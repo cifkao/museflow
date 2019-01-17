@@ -8,7 +8,7 @@ from museflow.components import EmbeddingLayer, RNNEncoder, RNNDecoder
 from museflow.config import configurable
 from museflow.model_utils import (DatasetManager, create_train_op, prepare_train_and_val_data,
                                   make_simple_dataset)
-from museflow.training import BasicTrainer
+from museflow.trainer import BasicTrainer
 from .model import Model
 
 

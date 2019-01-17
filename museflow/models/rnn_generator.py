@@ -6,7 +6,7 @@ import tensorflow as tf
 from museflow.components import RNNDecoder, EmbeddingLayer
 from museflow.config import configurable
 from museflow.model_utils import DatasetManager, create_train_op, prepare_train_and_val_data
-from museflow.training import BasicTrainer
+from museflow.trainer import BasicTrainer
 from .model import Model
 
 
