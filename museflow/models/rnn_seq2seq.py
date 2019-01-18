@@ -16,11 +16,11 @@ from .model import Model
                'state_projection', 'decoder', 'attention_mechanism', 'training'])
 class RNNSeq2Seq(Model):
 
-    def __init__(self, logdir, train_mode, config=None, **kwargs):
-        Model.__init__(self, logdir=logdir, config=config, **kwargs)
+    def __init__(self, logdir, train_mode, **kwargs):
+        Model.__init__(self, logdir=logdir, **kwargs)
         self._train_mode = train_mode
 
-        self._encoding = self._configure('encoding')
+        self._encoding = self._cfg.configure('encoding')
 
         with tf.name_scope('data'):
             self._dataset_manager = DatasetManager(
@@ -28,36 +28,38 @@ class RNNSeq2Seq(Model):
                 output_shapes=([None, None], [None, None], [None, None]))
             if train_mode:
                 # Configure the dataset manager with the training and validation data.
-                self._configure('data_prep', prepare_train_and_val_data,
-                                dataset_manager=self._dataset_manager,
-                                train_generator=self._load_data(self._args['train_data']['src'],
-                                                                self._args['train_data']['tgt']),
-                                val_generator=self._load_data(self._args['val_data']['src'],
-                                                              self._args['val_data']['tgt']),
-                                output_types=(tf.int32, tf.int32, tf.int32),
-                                output_shapes=([None], [None], [None]))
+                self._cfg.configure(
+                    'data_prep', prepare_train_and_val_data,
+                    dataset_manager=self._dataset_manager,
+                    train_generator=self._load_data(self._args['train_data']['src'],
+                                                    self._args['train_data']['tgt']),
+                    val_generator=self._load_data(self._args['val_data']['src'],
+                                                  self._args['val_data']['tgt']),
+                    output_types=(tf.int32, tf.int32, tf.int32),
+                    output_shapes=([None], [None], [None]))
 
         inputs, decoder_inputs, decoder_targets = self._dataset_manager.get_batch()
         batch_size = tf.shape(inputs)[0]
 
         vocabulary = self._encoding.vocabulary
-        embeddings = self._configure('embedding_layer', EmbeddingLayer, input_size=len(vocabulary))
-        encoder = self._configure('encoder', RNNEncoder)
+        embeddings = self._cfg.configure('embedding_layer', EmbeddingLayer,
+                                         input_size=len(vocabulary))
+        encoder = self._cfg.configure('encoder', RNNEncoder)
         encoder_states, encoder_final_state = encoder.encode(embeddings.embed(inputs))
 
         with tf.variable_scope('attention'):
-            attention = self._maybe_configure('attention_mechanism', memory=encoder_states)
-        self._decoder = self._configure('decoder', RNNDecoder,
-                                        vocabulary=vocabulary,
-                                        embedding_layer=embeddings,
-                                        attention_mechanism=attention)
+            attention = self._cfg.maybe_configure('attention_mechanism', memory=encoder_states)
+        self._decoder = self._cfg.configure('decoder', RNNDecoder,
+                                            vocabulary=vocabulary,
+                                            embedding_layer=embeddings,
+                                            attention_mechanism=attention)
 
         # Supply initial state if attention is not used
         decoder_initial_state = None
         if not attention:
-            state_projection = self._configure('state_projection', tf.layers.Dense,
-                                               units=self._decoder.cell.state_size,
-                                               name='state_projection')
+            state_projection = self._cfg.configure('state_projection', tf.layers.Dense,
+                                                   units=self._decoder.cell.state_size,
+                                                   name='state_projection')
             decoder_initial_state = state_projection(encoder_final_state)
 
         # Build the training version of the decoder and the training ops
@@ -78,9 +80,9 @@ class RNNSeq2Seq(Model):
                                                     batch_size=batch_size)
 
         self._session = tf.Session()
-        self._trainer = self._configure('trainer', BasicTrainer,
-                                        dataset_manager=self._dataset_manager,
-                                        logdir=self._logdir, session=self._session)
+        self._trainer = self._cfg.configure('trainer', BasicTrainer,
+                                            dataset_manager=self._dataset_manager,
+                                            logdir=self._logdir, session=self._session)
 
     def _load_data(self, src_fname, tgt_fname):
         with open(src_fname, 'rb') as f:
@@ -116,7 +118,7 @@ class RNNSeq2Seq(Model):
         return generator
 
     def _make_train_ops(self):
-        train_op = self._configure('training', create_train_op, loss=self._loss)
+        train_op = self._cfg.configure('training', create_train_op, loss=self._loss)
         init_op = tf.global_variables_initializer()
 
         tf.summary.scalar('train/loss', self._loss)

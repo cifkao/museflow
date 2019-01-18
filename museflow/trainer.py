@@ -4,17 +4,15 @@ import numpy as np
 import tensorflow as tf
 
 from museflow import logger
-from museflow.config import Configurable, configurable
+from museflow.config import configurable
 
 
 @configurable(['latest_saver', 'best_saver'])
-class BasicTrainer(Configurable):
+class BasicTrainer:
     """A class implementing a basic training/validation loop, model saving and model loading."""
 
     def __init__(self, dataset_manager, logdir, logging_period, validation_period, session=None,
-                 train_dataset_name='train', val_dataset_name='val', config=None):
-        Configurable.__init__(self, config)
-
+                 train_dataset_name='train', val_dataset_name='val'):
         self.session = session or tf.Session()
         self._dataset_manager = dataset_manager
         self._logdir = logdir
@@ -28,9 +26,9 @@ class BasicTrainer(Configurable):
 
         self._writer = tf.summary.FileWriter(logdir=self._logdir, graph=tf.get_default_graph())
         with tf.name_scope('savers'):
-            self._latest_saver = self._configure('latest_saver', tf.train.Saver, name='latest')
-            self._best_saver = self._configure('best_saver', tf.train.Saver,
-                                               name='best', max_to_keep=1)
+            self._latest_saver = self._cfg.configure('latest_saver', tf.train.Saver, name='latest')
+            self._best_saver = self._cfg.configure('best_saver', tf.train.Saver,
+                                                   name='best', max_to_keep=1)
 
     @property
     def step(self):

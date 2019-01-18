@@ -1,14 +1,12 @@
 import tensorflow as tf
 
-from museflow.config import Configurable
 from .component import Component, using_scope
 
 
-class EmbeddingLayer(Component, Configurable):
+class EmbeddingLayer(Component):
 
-    def __init__(self, input_size, output_size, name='embedding', config=None):
+    def __init__(self, input_size, output_size, name='embedding'):
         Component.__init__(self, name=name)
-        Configurable.__init__(self, config)
 
         self.input_size = input_size
         self.output_size = output_size

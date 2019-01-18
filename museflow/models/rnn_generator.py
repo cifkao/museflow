@@ -13,28 +13,30 @@ from .model import Model
 @configurable(['data_prep', 'encoding', 'embedding_layer', 'decoder', 'trainer', 'training'])
 class RNNGenerator(Model):
 
-    def __init__(self, logdir, train_mode, config=None, **kwargs):
-        Model.__init__(self, logdir=logdir, config=config, **kwargs)
+    def __init__(self, logdir, train_mode, **kwargs):
+        Model.__init__(self, logdir=logdir, **kwargs)
         self._train_mode = train_mode
 
-        self._encoding = self._configure('encoding')
+        self._encoding = self._cfg.configure('encoding')
 
         with tf.name_scope('data'):
             self._dataset_manager = DatasetManager()
             if train_mode:
                 # Configure the dataset manager with the training and validation data.
-                self._configure('data_prep', prepare_train_and_val_data,
-                                dataset_manager=self._dataset_manager,
-                                train_generator=self._make_data_generator(self._args['train_data']),
-                                val_generator=self._make_data_generator(self._args['val_data']),
-                                output_types=(tf.int32, tf.int32),
-                                output_shapes=([None], [None]))
+                self._cfg.configure(
+                    'data_prep', prepare_train_and_val_data,
+                    dataset_manager=self._dataset_manager,
+                    train_generator=self._make_data_generator(self._args['train_data']),
+                    val_generator=self._make_data_generator(self._args['val_data']),
+                    output_types=(tf.int32, tf.int32),
+                    output_shapes=([None], [None]))
 
         vocabulary = self._encoding.vocabulary
-        embeddings = self._configure('embedding_layer', EmbeddingLayer, input_size=len(vocabulary))
-        self._decoder = self._configure('decoder', RNNDecoder,
-                                        vocabulary=vocabulary,
-                                        embedding_layer=embeddings)
+        embeddings = self._cfg.configure('embedding_layer', EmbeddingLayer,
+                                         input_size=len(vocabulary))
+        self._decoder = self._cfg.configure('decoder', RNNDecoder,
+                                            vocabulary=vocabulary,
+                                            embedding_layer=embeddings)
 
         # Build the training version of the decoder and the training ops
         if train_mode:
@@ -51,9 +53,9 @@ class RNNGenerator(Model):
                                                     random_seed=self._args['sampling_seed'])
 
         self._session = tf.Session()
-        self._trainer = self._configure('trainer', BasicTrainer,
-                                        dataset_manager=self._dataset_manager,
-                                        logdir=self._logdir, session=self._session)
+        self._trainer = self._cfg.configure('trainer', BasicTrainer,
+                                            dataset_manager=self._dataset_manager,
+                                            logdir=self._logdir, session=self._session)
 
     def _make_data_generator(self, fname):
         with open(fname, 'rb') as f:
@@ -67,7 +69,7 @@ class RNNGenerator(Model):
         return generator
 
     def _make_train_ops(self):
-        train_op = self._configure('training', create_train_op, loss=self._loss)
+        train_op = self._cfg.configure('training', create_train_op, loss=self._loss)
         init_op = tf.global_variables_initializer()
 
         tf.summary.scalar('train/loss', self._loss)

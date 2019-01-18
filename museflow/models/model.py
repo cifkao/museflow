@@ -6,14 +6,14 @@ import tensorflow as tf
 import yaml
 
 from museflow import logger
-from museflow.config import Configurable
+from museflow.config import configurable, configure
 
 
-class Model(Configurable):
+@configurable()
+class Model:
     """A base class for models."""
 
-    def __init__(self, logdir, config=None, **kwargs):
-        Configurable.__init__(self, config)
+    def __init__(self, logdir, **kwargs):
         self._logdir = logdir
         self._args = kwargs
 
@@ -45,6 +45,6 @@ class Model(Configurable):
             with open(config_file, 'rb') as f:
                 return cls.from_yaml(logdir, config_file=f, **kwargs)
 
-        config = yaml.load(config_file)
-        logger.debug(config)
-        return cls.from_config(config, logdir=logdir, **kwargs)
+        config_dict = yaml.load(config_file)
+        logger.debug(config_dict)
+        return configure(cls, config_dict, logdir=logdir, **kwargs)

@@ -1,21 +1,20 @@
 import tensorflow as tf
 
-from museflow.config import Configurable, configurable
+from museflow.config import configurable
 from .component import Component, using_scope
 
 
 @configurable(['forward_cell', 'backward_cell'])
-class RNNEncoder(Component, Configurable):
+class RNNEncoder(Component):
 
-    def __init__(self, name='encoder', config=None):
+    def __init__(self, name='encoder'):
         Component.__init__(self, name=name)
-        Configurable.__init__(self, config)
 
         with self.use_scope():
-            self._fw_cell = self._configure('forward_cell', tf.nn.rnn_cell.GRUCell,
-                                            dtype=tf.float32)
-            self._bw_cell = self._maybe_configure('backward_cell', tf.nn.rnn_cell.GRUCell,
-                                                  dtype=tf.float32)
+            self._fw_cell = self._cfg.configure('forward_cell', tf.nn.rnn_cell.GRUCell,
+                                                dtype=tf.float32)
+            self._bw_cell = self._cfg.maybe_configure('backward_cell', tf.nn.rnn_cell.GRUCell,
+                                                      dtype=tf.float32)
 
     @using_scope
     def encode(self, inputs):

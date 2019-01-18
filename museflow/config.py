@@ -4,60 +4,33 @@ import sys
 from museflow import logger
 
 
-_NO_DEFAULT = object()
+class Configuration:
 
+    def __init__(self, config_dict, configurables=()):
+        self._config_dict = config_dict
+        self._subconfigs = configurables
 
-class Configurable:
-    """A base class for configurable objects.
-
-    Every subclass of `Configurable` should accept a `config` argument in its `__init__` method and
-    pass it to `Configurable`. The subclass may also define the `_subconfigs` class attribute to
-    list objects that can be configured via this config dict. An example:
-
-    ```
-    class MyModel(Configurable):
-        _subconfigs = ['encoder', 'decoder']
-
-        def __init__(self, config=None):
-            Configurable.__init__(self, config)
-
-            encoder = self._configure('encoder', MyEncoder)
-            decoder = self._configure('decoder', MyDecoder)
-    ```
-
-    In this example, calling `self._configure('encoder', MyEncoder)` will construct an instance of
-    the `MyEncoder` class with the keyword arguments given in `config['encoder']`.
-    """
-
-    _subconfigs = ()
-
-    def __init__(self, config=None):
-        self._config_dict = config or {}
-
-    def _configure(self, config_key, constructor=None, **kwargs):
+    def configure(self, *args, **kwargs):
         """Configure an object using a given key from the config dict.
 
-        Calls `constructor` with the keyword arguments specified in `config[config_key]`. Note that
-        the constructor is called even if `config_key` is not present in `config`.
+        Two positional arguments are expected: `config_key` (required) and `constructor` (optional).
+        Calls `constructor` with the keyword arguments specified in `config_dict[config_key]` or
+        passed to this function. Note that the constructor is called even if `config_key` is not
+        present in `config_dict`.
 
-        Args:
-            config_key: A key specified in `_subconfigs`.
-            constructor: A callable that constructs the object. Can be overridden by a `class` key
-                in the config dict.
-            **kwargs: Default keyword arguments to pass to the constructor. Can be overridden by
-                values in the config dict.
+        Any keyword arguments passed to this function are treated as defaults and can be overridden
+        by the config dict.
+
         Returns:
             The return value of `constructor`, or `None` if `config[config_key]` is `None`.
         """
+        config_key, constructor = _expand_args(self.configure, args, 1, None)
+
         if config_key not in self._subconfigs:
             raise RuntimeError('Key {} not defined in {}._subconfigs'.format(
                 config_key, type(self).__name__))
 
-        _default = {}
-        if '_default' in kwargs:
-            _default = kwargs['_default']
-            del kwargs['_default']
-        config = self._get_config(config_key, _default)
+        config = self._config_dict.get(config_key, {})
 
         if config is None:
             return None
@@ -71,7 +44,6 @@ class Configurable:
 
         try:
             config_dict = dict(config)  # Make a copy of the dict
-
             if not constructor or 'class' in config_dict:
                 constructor = config_dict['class']
                 del config_dict['class']
@@ -83,112 +55,130 @@ class Configurable:
             )).with_traceback(sys.exc_info()[2]) from None
 
         try:
-            # If it's a class which is a subclass of Configurable or if it's a configurable function
-            if ((isinstance(constructor, type) and issubclass(constructor, Configurable)) or
-                    isinstance(constructor, _ConfigurableFunction)):
-                return constructor.from_config(config_dict, **kwargs)
+            if hasattr(constructor, '__museflow_subconfigs'):
+                return _construct_configurable(constructor, kwargs, config_dict)
 
-            _log_call(constructor, **kwargs, **config_dict)
+            _log_call(constructor, kwargs={**kwargs, **config_dict})
             return constructor(**kwargs, **config_dict)
         except TypeError as e:
             raise ConfigError('{} while configuring {} ({!r}): {}'.format(
                 type(e).__name__, config_key, constructor, e
             )).with_traceback(sys.exc_info()[2]) from None
 
-    def _maybe_configure(self, config_key, constructor=None, **kwargs):
+    def maybe_configure(self, *args, **kwargs):
         """Configure an object using a given key only if the key is present in the config dict.
 
         Like `_configure`, but returns `None` if the key is not present.
         """
-        return self._configure(config_key, constructor, _default=None, **kwargs)
+        config_key, constructor = _expand_args(self.maybe_configure, args, 1, None)
 
-    def _get_config(self, key, default=_NO_DEFAULT):
-        """Retrieve a given key from the config dict."""
-        if default is _NO_DEFAULT:
-            return self._config_dict[key]
-        return self._config_dict.get(key, default)
+        if config_key not in self._subconfigs:
+            raise RuntimeError('Key {} not defined in {}._subconfigs'.format(
+                config_key, type(self).__name__))
 
-    @classmethod
-    def from_config(cls, config, *args, **kwargs):
-        """Construct an instance of this class from a given config dict.
+        if config_key not in self._config_dict:
+            return None
 
-        Args:
-            config: A config dict containing keyword arguments for the `__init__` method and keys
-                listed in `_subconfigs`.
-            *args: Positional arguments to the `__init__` method.
-            **kwargs: Default keyword arguments to the `__init__` method. Can be overridden by
-                values in `config`.
-        Returns:
-            The created instance.
-        """
-        kwargs = dict(kwargs)
-        kwargs.update({k: v for k, v in config.items() if k not in cls._subconfigs})
-        config = {k: v for k, v in config.items() if k in cls._subconfigs}
-
-        _log_call(cls, *args, **kwargs)
-        return cls(*args, **kwargs, config=config)
+        return self.configure(config_key, constructor, **kwargs)
 
 
 def configurable(subconfigs=()):
     """Return a decorator that makes a function or a class configurable.
 
-    A wrapped (decorated) function should have an extra first argument `cfg`. It is then possible
-    to call `cfg.configure` or `cfg.maybe_configure` in the body of the function. The function can
-    be used in the same way as a configurable type or called normally (without the `cfg` argument).
+    The configurable function/class can be called/instantiated normally, or via `configure` or
+    `Configuration.configure`.
+
+    A configurable function should have an extra first argument `cfg`, which will be automatically
+    populated with an instance of `Configuration` when the function is called. It is then possible
+    to call `cfg.configure` or `cfg.maybe_configure` in the body of the function.
+
+    A configurable class can access its `Configuration` object via `self._cfg` (e.g.
+    `self._cfg.configure`).
 
     Args:
-        subconfigs: A list of objects that can be configured via the configuration mechanism.
+        subconfigs: A list of names of objects that can be configured via the configuration
+            mechanism.
     Returns:
         The decorator.
     """
-    def decorator(func):
-        if isinstance(func, type):
-            if issubclass(func, Configurable):
-                func._subconfigs = (*func._subconfigs, *subconfigs)  # pylint: disable=protected-access
-                return func
-            else:
-                wrapper = type(func.__name__,
-                               (func, Configurable),
-                               dict(_subconfigs=(*subconfigs,)))
-                return functools.update_wrapper(wrapper, func, updated=())
+    def decorator(x):
+        parent_subconfigs = getattr(x, '__museflow_subconfigs', ())
+        setattr(x, '__museflow_subconfigs', (*parent_subconfigs, *subconfigs))
+
+        # Wrap x or its __init__ so that an empty Configuration gets created by default.
+
+        if isinstance(x, type):
+            init = x.__init__
+
+            @functools.wraps(init)
+            def init_wrapper(self, *args, **kwargs):
+                if not hasattr(self, '_cfg'):
+                    cfg = Configuration({}, getattr(self, '__museflow_subconfigs'))
+                    setattr(self, '_cfg', cfg)
+
+                init(self, *args, **kwargs)
+
+            x.__init__ = init_wrapper
+            return x
         else:
-            return _ConfigurableFunction(func, subconfigs)
+            @functools.wraps(x)
+            def wrapper(*args, **kwargs):
+                cfg = Configuration({}, getattr(x, '__museflow_subconfigs'))
+                return x(cfg, *args, **kwargs)
+
+            setattr(wrapper, '__museflow_wrapped', x)
+            return wrapper
 
     return decorator
 
 
-class _ConfigurableFunction:
+def configure(*args, **kwargs):
+    """Call/instantiate a configurable function/class from a config dict.
 
-    def __init__(self, function, subconfigs):
-        self._function = function
-        functools.update_wrapper(self, self._function)
-
-        # We need to create a new Configurable type so that we can set its _subconfigs
-        self._configurator = type(self._function.__name__ + '__cfg',
-                                  (self.Configurator,),
-                                  dict(_subconfigs=subconfigs))
-
-    def __call__(self, *args, **kwargs):
-        return self._function(self._configurator(), *args, **kwargs)
-
-    def from_config(self, config, *args, **kwargs):
-        cfg = self._configurator.from_config(config, *args, **kwargs)
-        _log_call(self._function, *args, **kwargs)
-        return self._function(cfg, *cfg.fn_args, **cfg.fn_kwargs)
-
-    class Configurator(Configurable):
-
-        def __init__(self, *args, config=None, **kwargs):
-            Configurable.__init__(self, config)
-            self.fn_args = args
-            self.fn_kwargs = kwargs
-            self.configure = self._configure
-            self.maybe_configure = self._maybe_configure
+    Two positional arguments are required: the function or class to be configured and the config
+    dict.
+    """
+    x, config_dict = _expand_args(configure, args, 2)
+    return _construct_configurable(x, kwargs, config_dict)
 
 
-def _log_call(fn, *args, **kwargs):
-    if isinstance(fn, type) and issubclass(fn, _ConfigurableFunction.Configurator):
-        return
+def _construct_configurable(x, kwargs, config_dict):
+    subconfigs = getattr(x, '__museflow_subconfigs')
+
+    # Move keys from config_dict to kwargs, except for those that are in the subconfigs list.
+    kwargs = dict(kwargs)
+    kwargs.update({k: v for k, v in config_dict.items() if k not in subconfigs})
+    config_dict = {k: v for k, v in config_dict.items() if k in subconfigs}
+    _log_call(x, kwargs=kwargs)
+
+    cfg = Configuration(config_dict, subconfigs)
+
+    if isinstance(x, type):
+        obj = x.__new__(x, **kwargs)
+        setattr(obj, '_cfg', cfg)
+        obj.__init__(**kwargs)
+        return obj
+    else:
+        wrapped = getattr(x, '__museflow_wrapped')
+        return wrapped(cfg, **kwargs)
+
+
+def _expand_args(fn, args, required, *defaults):
+    if len(args) < required:
+        raise TypeError('{} expected at least {} positional arguments, got {}'.format(
+            fn.__name__, required, len(args)))
+
+    max_num = required + len(defaults)
+    if len(args) > max_num:
+        raise TypeError('{} expected at most {} positional arguments, got {}'.format(
+            fn.__name__, max_num, len(args)))
+
+    return args + defaults[len(args) - required:]
+
+
+def _log_call(fn, args=None, kwargs=None):
+    args = args or []
+    kwargs = kwargs or {}
     args_and_kwargs = [f'{a!r}' for a in args] + [f'{k}={v!r}' for k, v in kwargs.items()]
     logger.debug('Calling {}({})'.format(fn.__name__, ', '.join(args_and_kwargs)))
 
