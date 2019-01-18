@@ -1,3 +1,42 @@
+"""Model configuration.
+
+This module implements a configuration mechanism, which enables a model to be created from a
+configuration dictionary, e.g.:
+
+```
+config_dict = {
+    'say_hello': True,
+    'encoder': {
+        'cell': {
+            'num_units': 500
+        }
+    },
+    'decoder': {
+        'size': 1000
+    }
+}
+configure(MyModel, config_dict, logdir='/tmp/logdir')
+```
+
+To make our model class configurable in the first place, we need to decorate it with
+`@configurable`. When the decorated class is instantiated, a magic `_cfg` attribute is attached to
+it automatically. This `_cfg` is an instance of the `Configuration` class and can be used to
+create other configurable objects inside the model. As an example:
+
+```
+@configurable(['encoder', 'decoder'])
+class MyModel(Model):
+
+    def __init__(self, logdir, say_hello=False):
+        Model.__init__(self, logdir)
+
+        if say_hello:
+            logger.info('Hello world!')
+        encoder = self._cfg.configure('encoder', MyEncoder)
+        decoder = self._cfg.configure('decoder', MyDecoder)
+```
+"""
+
 import functools
 import sys
 
