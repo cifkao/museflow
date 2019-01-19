@@ -74,6 +74,8 @@ class DatasetManager:
         self._handle_placeholder = tf.placeholder(tf.string, [], name='dataset_handle')
         self._global_iterator = None
 
+        self.training = tf.placeholder_with_default(False, [], name='training')
+
     def add_dataset(self, name, dataset, one_shot=False):
         """Add a new dataset to the collection.
 

@@ -54,7 +54,8 @@ class BasicTrainer:
 
             try:
                 _, train_summary, train_loss = self._dataset_manager.run(
-                    self.session, (train_op, train_summary_op, loss), self._train_dataset_name)
+                    self.session, (train_op, train_summary_op, loss), self._train_dataset_name,
+                    feed_dict={self._dataset_manager.training: True})
             except tf.errors.OutOfRangeError:
                 break
 
