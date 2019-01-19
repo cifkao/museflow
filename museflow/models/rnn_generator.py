@@ -36,7 +36,8 @@ class RNNGenerator(Model):
                                          input_size=len(vocabulary))
         self._decoder = self._cfg.configure('decoder', RNNDecoder,
                                             vocabulary=vocabulary,
-                                            embedding_layer=embeddings)
+                                            embedding_layer=embeddings,
+                                            training=self._dataset_manager.training)
 
         # Build the training version of the decoder and the training ops
         if train_mode:

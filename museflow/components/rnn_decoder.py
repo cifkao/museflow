@@ -1,14 +1,15 @@
 import tensorflow as tf
 
 from museflow.config import configurable
+from museflow.nn.rnn import DropoutWrapper
 from .component import Component, using_scope
 
 
-@configurable(['cell', 'output_projection', 'attention_wrapper'])
+@configurable(['cell', 'dropout', 'output_projection', 'attention_wrapper'])
 class RNNDecoder(Component):
 
     def __init__(self, vocabulary, embedding_layer, attention_mechanism=None, max_length=None,
-                 name='decoder'):
+                 training=None, name='decoder'):
         Component.__init__(self, name=name)
 
         self._vocabulary = vocabulary
@@ -17,7 +18,11 @@ class RNNDecoder(Component):
         self._max_length = max_length
 
         with self.use_scope():
-            self.cell = self._cfg.configure('cell', tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
+            cell = self._cfg.configure('cell', tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
+            cell_dropout = self._cfg.maybe_configure('dropout', DropoutWrapper,
+                                                     cell=cell, training=training)
+            self.cell = cell_dropout or cell
+
             if self._attention_mechanism:
                 self.cell = self._cfg.configure('attention_wrapper',
                                                 tf.contrib.seq2seq.AttentionWrapper,

@@ -11,12 +11,19 @@ encoder:
     num_units: 200
   backward_cell:
     num_units: 100
+  dropout:
+    input_keep_prob: 0.8
 attention_mechanism:
   class: !!python/name:tensorflow.contrib.seq2seq.BahdanauAttention
   num_units: 23
 decoder:
   cell:
     num_units: 300
+  dropout:
+    input_keep_prob: 0.8
+    state_keep_prob: 0.9
+    variational_recurrent: True
+    input_size: 342  # 42 (embedding size) + 300 (attention output size)
   max_length: 50
 
 trainer:
