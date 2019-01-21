@@ -26,7 +26,8 @@ class BasicTrainer:
 
         self._writer = tf.summary.FileWriter(logdir=self._logdir, graph=tf.get_default_graph())
         with tf.name_scope('savers'):
-            self._latest_saver = self._cfg.configure('latest_saver', tf.train.Saver, name='latest')
+            self._latest_saver = self._cfg.configure('latest_saver', tf.train.Saver,
+                                                     name='latest', max_to_keep=2)
             self._best_saver = self._cfg.configure('best_saver', tf.train.Saver,
                                                    name='best', max_to_keep=1)
 
