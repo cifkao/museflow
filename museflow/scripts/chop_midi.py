@@ -1,6 +1,7 @@
 """Chop midi files into segments containing a given number of bars."""
 
 import argparse
+import collections
 import math
 import pickle
 import re
@@ -42,33 +43,49 @@ def chop_midi(files, instrument_re, bars_per_segment, min_notes_per_segment=2,
                 instrument_re, file_id))
             continue
         all_notes = [n for i in instruments for n in i.notes]
+        all_notes.sort(key=lambda n: n.start)
+
+        def is_overlapping(note, start, end):
+            """Check whether the given note overlaps with the given interval."""
+            return ((note.end > start or math.isclose(note.end, start)) and
+                    (note.start < end and not math.isclose(note.start, end)))
 
         downbeats = midi.get_downbeats()[skip_bars:]
         for bps in bars_per_segment:
+            note_queue = collections.deque(all_notes)
+            notes = []  # notes in the current segment
             for i in range(0, len(downbeats), bps):
                 start = downbeats[i]
                 end = downbeats[i + bps] if i + bps < len(downbeats) else midi.get_end_time()
                 if math.isclose(start, end):
                     continue
 
-                # Find notes that overlap with this segment and clip them.
-                notes = [
+                # Filter the notes from the previous segment to keep those that overlap with the
+                # current one.
+                notes[:] = (n for n in notes if is_overlapping(n, start, end))
+
+                # Add new overlapping notes. note_queue is sorted by onset time, so we can stop
+                # after the first note which is outside the segment.
+                while note_queue and is_overlapping(note_queue[0], start, end):
+                    notes.append(note_queue.popleft())
+
+                # Clip the notes to the segment.
+                notes_clipped = [
                     pretty_midi.Note(
                         start=max(0., n.start - start),
                         end=min(n.end, end) - start,
                         pitch=n.pitch,
                         velocity=n.velocity)
-                    for n in all_notes
-                    if n.end >= start and n.start < end
+                    for n in notes
                 ]
 
-                if len(notes) < min_notes_per_segment:
+                if len(notes_clipped) < min_notes_per_segment:
                     continue
 
                 if include_segment_id:
-                    yield ((file_id, i, i + bps), notes)
+                    yield ((file_id, i, i + bps), notes_clipped)
                 else:
-                    yield notes
+                    yield notes_clipped
 
 
 def normalize_tempo(midi, new_tempo=60):
