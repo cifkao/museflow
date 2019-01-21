@@ -12,10 +12,10 @@ def main():
         parser.print_help()
         sys.exit(1)
 
-    coloredlogs.install(level='DEBUG', logger=logger)
-
     parser = argparse.ArgumentParser()
     parser.set_defaults(func=print_help_and_exit)
+    parser.add_argument('--color', action='store_true', default=None,
+                        help='force colored logs')
     subparsers = parser.add_subparsers(title='commands')
 
     subparser = subparsers.add_parser('script')
@@ -28,6 +28,9 @@ def main():
     _add_model_argparsers(subsubparsers)
 
     args = parser.parse_args()
+
+    coloredlogs.install(level='DEBUG', logger=logger, isatty=args.color)
+
     args.func(args)
 
 
