@@ -72,6 +72,9 @@ def chop_midi(files, instrument_re, bars_per_segment, min_notes_per_segment=2,
 
 
 def normalize_tempo(midi, new_tempo=60):
+    if math.isclose(midi.get_end_time(), 0.):
+        return
+
     tempo_change_times, tempi = midi.get_tempo_changes()
     original_times = list(tempo_change_times) + [midi.get_end_time()]
     new_times = [original_times[0]]
