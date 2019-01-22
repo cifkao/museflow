@@ -80,9 +80,9 @@ class Configuration:
                     config_key, type(config)
                 ))
             return config
+        config_dict = dict(config)  # Make a copy of the dict
 
         try:
-            config_dict = dict(config)  # Make a copy of the dict
             if not constructor or 'class' in config_dict:
                 constructor = config_dict['class']
                 del config_dict['class']
@@ -93,6 +93,9 @@ class Configuration:
                 type(e).__name__, config_key, e
             )).with_traceback(sys.exc_info()[2]) from None
 
+        # If the constructor is decorated with @configurable, we use _construct_configurable, which
+        # creates a Configuration object and passes it to the constructor. Otherwise, we just call
+        # the constructor.
         try:
             if hasattr(constructor, '__museflow_subconfigs'):
                 return _construct_configurable(constructor, kwargs, config_dict)
