@@ -146,7 +146,7 @@ class RNNSeq2Seq(Model):
         output_ids = self._dataset_manager.run_over_dataset(
             self._session, output_ids_tensor, dataset,
             feed_dict={self._softmax_temperature: softmax_temperature},
-            stack_batches=True)
+            concat_batches=True)
         return [self._encoding.decode(seq) for seq in output_ids]
 
     @classmethod

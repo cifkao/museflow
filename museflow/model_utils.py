@@ -128,7 +128,7 @@ class DatasetManager:
             feed_dict[self._handle_placeholder] = self._handles[dataset_name]
         return session.run(fetches, feed_dict)
 
-    def run_over_dataset(self, session, fetches, dataset, feed_dict=None, stack_batches=False):
+    def run_over_dataset(self, session, fetches, dataset, feed_dict=None, concat_batches=False):
         """Run the given TensorFlow ops while iterating over an entire dataset.
 
         Args:
@@ -136,10 +136,12 @@ class DatasetManager:
             fetches: The `fetches` to pass to `session.run`.
             dataset: The name of the dataset to use, or a new `tf.data.Dataset`.
             feed_dict: The `feed_dict` to pass to `session.run`.
-            stack_batches: If `True`, the results will be concatenated along the first dimension.
+            concat_batches: If `True`, the results will be concatenated along the first dimension.
         Returns:
-            If `stack_batches` is `False`, a list of results of `session.run`; if `stack_batches` is
-            `True`, a list (or a nested structure of lists) obtained by concatenating all batches.
+            A list of results of `session.run`. If `fetches` is a nested structure of tensors,
+            then the same nested structure will be returned, containing a list of results for each
+            tensor. If `concat_batches` is `True`, the return value will be a list (or a nested
+            structure of lists) obtained by concatenating all batches.
         """
         if isinstance(dataset, str):
             dataset_name = dataset
@@ -156,15 +158,17 @@ class DatasetManager:
             except tf.errors.OutOfRangeError:
                 break
 
-        if stack_batches:
-            # Flatten the structure of each batch, stack the corresponding elements and restore
-            # the structure.
-            structure = results[0]
-            results_flat = [tf.contrib.framework.nest.flatten(r) for r in results]
+        # Flatten the structure of each batch, put the corresponding elements together and restore
+        # the structure.
+        structure = results[0]
+        results_flat = zip(*(tf.contrib.framework.nest.flatten(r) for r in results))
+        if concat_batches:
             # We do not use np.concatenate since the shapes of the batches might be incompatible.
             # Instead, we stack the items of all batches in a list.
-            results_flat = [[x for batch in r for x in batch] for r in zip(*results_flat)]
-            results = tf.contrib.framework.nest.pack_sequence_as(structure, results_flat)
+            results_flat = [[x for batch in r for x in batch] for r in results_flat]
+        else:
+            results_flat = [list(r) for r in results_flat]
+        results = tf.contrib.framework.nest.pack_sequence_as(structure, results_flat)
 
         if dataset_name == '__tmp':
             self.remove_dataset(dataset_name)
