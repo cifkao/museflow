@@ -73,7 +73,28 @@ class Configuration:
 
         if config is None:
             return None
+        if type(config) is list:
+            return [self._configure(config_key, config_item, constructor, kwargs)
+                    for config_item in config]
+        return self._configure(config_key, config, constructor, kwargs)
 
+    def maybe_configure(self, *args, **kwargs):
+        """Configure an object using a given key only if the key is present in the config dict.
+
+        Like `_configure`, but returns `None` if the key is not present.
+        """
+        config_key, constructor = _expand_args(self.maybe_configure, args, 1, None)
+
+        if config_key not in self._subconfigs:
+            raise RuntimeError('Key {} not defined in {}._subconfigs'.format(
+                config_key, type(self).__name__))
+
+        if config_key not in self._config_dict:
+            return None
+
+        return self.configure(config_key, constructor, **kwargs)
+
+    def _configure(self, config_key, config, constructor, kwargs):
         if type(config) is not dict:
             if constructor or kwargs:
                 raise ConfigError('Error while configuring {}: dict expected, got {}'.format(
@@ -107,22 +128,6 @@ class Configuration:
             raise ConfigError('{} while configuring {} ({!r}): {}'.format(
                 type(e).__name__, config_key, constructor, e
             )).with_traceback(sys.exc_info()[2]) from None
-
-    def maybe_configure(self, *args, **kwargs):
-        """Configure an object using a given key only if the key is present in the config dict.
-
-        Like `_configure`, but returns `None` if the key is not present.
-        """
-        config_key, constructor = _expand_args(self.maybe_configure, args, 1, None)
-
-        if config_key not in self._subconfigs:
-            raise RuntimeError('Key {} not defined in {}._subconfigs'.format(
-                config_key, type(self).__name__))
-
-        if config_key not in self._config_dict:
-            return None
-
-        return self.configure(config_key, constructor, **kwargs)
 
 
 def configurable(subconfigs=()):
