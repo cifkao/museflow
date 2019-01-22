@@ -85,11 +85,7 @@ class Configuration:
         """
         config_key, constructor = _expand_args(self.maybe_configure, args, 1, None)
 
-        if config_key not in self._subconfigs:
-            raise RuntimeError('Key {} not defined in {}._subconfigs'.format(
-                config_key, type(self).__name__))
-
-        if config_key not in self._config_dict:
+        if config_key in self._subconfigs and config_key not in self._config_dict:
             return None
 
         return self.configure(config_key, constructor, **kwargs)
