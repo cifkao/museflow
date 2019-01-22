@@ -100,8 +100,9 @@ class Configuration:
             if hasattr(constructor, '__museflow_subconfigs'):
                 return _construct_configurable(constructor, kwargs, config_dict)
 
-            _log_call(constructor, kwargs={**kwargs, **config_dict})
-            return constructor(**kwargs, **config_dict)
+            kwargs={**kwargs, **config_dict}
+            _log_call(constructor, kwargs=kwargs)
+            return constructor(**kwargs)
         except TypeError as e:
             raise ConfigError('{} while configuring {} ({!r}): {}'.format(
                 type(e).__name__, config_key, constructor, e
