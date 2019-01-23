@@ -37,7 +37,7 @@ class RNNGenerator(Model):
         self._decoder = self._cfg.configure('decoder', RNNDecoder,
                                             vocabulary=vocabulary,
                                             embedding_layer=embeddings,
-                                            training=self._dataset_manager.training)
+                                            training=self._is_training)
 
         # Build the training version of the decoder and the training ops
         if train_mode:
@@ -56,7 +56,8 @@ class RNNGenerator(Model):
         self._session = tf.Session()
         self._trainer = self._cfg.configure('trainer', BasicTrainer,
                                             dataset_manager=self._dataset_manager,
-                                            logdir=self._logdir, session=self._session)
+                                            logdir=self._logdir, session=self._session,
+                                            training_placeholder=self._is_training)
 
     def _make_data_generator(self, fname):
         with open(fname, 'rb') as f:

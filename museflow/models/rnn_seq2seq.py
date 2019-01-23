@@ -45,7 +45,7 @@ class RNNSeq2Seq(Model):
         embeddings = self._cfg.configure('embedding_layer', EmbeddingLayer,
                                          input_size=len(vocabulary))
         encoder = self._cfg.configure('encoder', RNNEncoder,
-                                      training=self._dataset_manager.training)
+                                      training=self._is_training)
         encoder_states, encoder_final_state = encoder.encode(embeddings.embed(inputs))
 
         with tf.variable_scope('attention'):
@@ -54,7 +54,7 @@ class RNNSeq2Seq(Model):
                                             vocabulary=vocabulary,
                                             embedding_layer=embeddings,
                                             attention_mechanism=attention,
-                                            training=self._dataset_manager.training)
+                                            training=self._is_training)
 
         # Supply initial state if attention is not used
         decoder_initial_state = None
@@ -84,7 +84,8 @@ class RNNSeq2Seq(Model):
         self._session = tf.Session()
         self._trainer = self._cfg.configure('trainer', BasicTrainer,
                                             dataset_manager=self._dataset_manager,
-                                            logdir=self._logdir, session=self._session)
+                                            logdir=self._logdir, session=self._session,
+                                            training_placeholder=self._is_training)
 
     def _load_data(self, src_fname, tgt_fname):
         with open(src_fname, 'rb') as f:

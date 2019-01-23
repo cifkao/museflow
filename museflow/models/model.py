@@ -26,6 +26,8 @@ class Model:
             random.seed(seed)
             np.random.seed(seed)
 
+        self._is_training = tf.placeholder_with_default(False, [], name='is_training')
+
     @classmethod
     def from_yaml(cls, logdir, config_file=None, **kwargs):
         """Construct the model from a given YAML config file.

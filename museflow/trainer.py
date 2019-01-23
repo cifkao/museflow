@@ -13,17 +13,22 @@ class BasicTrainer:
     """A class implementing a basic training/validation loop, model saving and model loading."""
 
     def __init__(self, dataset_manager, logdir, logging_period, validation_period=None,
-                 session=None, train_dataset_name='train', val_dataset_name='val'):
+                 session=None, training_placeholder=None, train_dataset_name='train',
+                 val_dataset_name='val'):
         self.session = session or tf.Session()
         self._dataset_manager = dataset_manager
         self._logdir = logdir
         self._logging_period = logging_period
         self._validation_period = validation_period
+        self._training_placeholder = training_placeholder
+        self._train_dataset_name = train_dataset_name
+        self._val_dataset_name = val_dataset_name
 
         self._global_step_tensor = tf.train.get_or_create_global_step()
         self._step = 0
-        self._train_dataset_name = train_dataset_name
-        self._val_dataset_name = val_dataset_name
+
+        if self._training_placeholder is None:
+            self._training_placeholder = tf.placeholder_with_default(False, [], name='is_training')
 
         self._writer = tf.summary.FileWriter(logdir=self._logdir, graph=tf.get_default_graph())
         with tf.name_scope('savers'):
@@ -95,7 +100,7 @@ class BasicTrainer:
 
         _, train_summary, train_loss = self._dataset_manager.run(
             self.session, (train_op, train_summary_op, loss), self._train_dataset_name,
-            feed_dict={self._dataset_manager.training: True, **feed_dict})
+            feed_dict={self._training_placeholder: True, **feed_dict})
 
         self._step = self.session.run(self._global_step_tensor)
 
