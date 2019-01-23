@@ -13,6 +13,7 @@ def test_configure_function():
     expected_result = {'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5, 'f': 6}
     assert result == expected_result
 
+
 def test_configure_list():
     @config.configurable(['items'])
     def f(cfg):
