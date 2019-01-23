@@ -1,4 +1,5 @@
 import os
+import types
 
 import numpy as np
 import tensorflow as tf
@@ -11,8 +12,8 @@ from museflow.config import configurable
 class BasicTrainer:
     """A class implementing a basic training/validation loop, model saving and model loading."""
 
-    def __init__(self, dataset_manager, logdir, logging_period, validation_period, session=None,
-                 train_dataset_name='train', val_dataset_name='val'):
+    def __init__(self, dataset_manager, logdir, logging_period, validation_period=None,
+                 session=None, train_dataset_name='train', val_dataset_name='val'):
         self.session = session or tf.Session()
         self._dataset_manager = dataset_manager
         self._logdir = logdir
@@ -36,42 +37,75 @@ class BasicTrainer:
         return self._step
 
     def train(self, train_op, loss, init_op=(), train_summary_op=()):
+        train_generator = self.iter_train(train_op, loss, init_op, train_summary_op, period=None)
+        return next(train_generator)
+
+    def iter_train(self, train_op, loss, init_op=(), train_summary_op=(), period=0):
+        """Return a generator that runs the training loop.
+
+        Every `period` training steps, the generator yields an object with the attributes `step`,
+        `train_loss`, `last_val_loss`, `best_val_loss` and `best_val_step`. Note that the first
+        time, `step` will be 0 and the loss values possibly unknown.
+
+        If `period` is not specified, `validation_period` is used instead.
+        """
+        if period == 0:
+            period = self._validation_period
+
         self.session.run(init_op)
 
-        best_mean_loss = np.inf
+        state = types.SimpleNamespace(step=self._step,
+                                      train_loss=None,
+                                      last_val_loss=None,
+                                      best_val_loss=np.inf,
+                                      best_val_step=-1)
 
-        def validate_and_save(loss):
-            nonlocal best_mean_loss
-
-            mean_loss = self.validate(loss, write_summaries=True)
-            if mean_loss < best_mean_loss:
-                best_mean_loss = mean_loss
+        def validate_and_save():
+            state.last_val_loss = self.validate(loss, write_summaries=True)
+            if state.last_val_loss < state.best_val_loss:
+                state.best_val_loss, state.best_val_step = state.last_val_loss, self._step
                 self.save_variables('best')
             self.save_variables('latest')
 
         while True:
-            if self._step % self._validation_period == 0:
-                validate_and_save(loss)
+            if self._validation_period is not None and self._step % self._validation_period == 0:
+                validate_and_save()
+            if period is not None and self._step % period == 0:
+                yield types.SimpleNamespace(**state.__dict__)
 
             try:
-                _, train_summary, train_loss = self._dataset_manager.run(
-                    self.session, (train_op, train_summary_op, loss), self._train_dataset_name,
-                    feed_dict={self._dataset_manager.training: True})
+                state.train_loss, _ = self.training_step(train_op, loss, train_summary_op)
+                state.step = self._step
             except tf.errors.OutOfRangeError:
+                logger.info(f'Training finished after {state.step} steps, loss: {state.train_loss}')
                 break
 
-            self._step = self.session.run(self._global_step_tensor)
-
-            if self._step % self._logging_period == 0:
-                if train_summary:
-                    self._writer.add_summary(train_summary, self._step)
-                logger.info('step: {}, loss: {}'.format(self._step, train_loss))
-
-            if np.isnan(train_loss):
+            if np.isnan(state.train_loss):
                 logger.error('NaN loss, stopping training')
                 break
 
-        validate_and_save(loss)
+        if self._validation_period is not None:
+            validate_and_save()
+        yield state
+
+    def training_step(self, train_op, loss, train_summary_op=(), feed_dict=None,
+                      write_summaries=True, log=True):
+        if feed_dict is None:
+            feed_dict = {}
+
+        _, train_summary, train_loss = self._dataset_manager.run(
+            self.session, (train_op, train_summary_op, loss), self._train_dataset_name,
+            feed_dict={self._dataset_manager.training: True, **feed_dict})
+
+        self._step = self.session.run(self._global_step_tensor)
+
+        if self._step % self._logging_period == 0:
+            if write_summaries and train_summary:
+                self._writer.add_summary(train_summary, self._step)
+            if log:
+                logger.info('step: {}, loss: {}'.format(self._step, train_loss))
+
+        return train_loss, train_summary
 
     def validate(self, loss, write_summaries=False):
         val_losses = self._dataset_manager.run_over_dataset(self.session, loss,
