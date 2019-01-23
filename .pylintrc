@@ -144,6 +144,7 @@ disable=C,
         comprehension-escape,
         logging-format-interpolation,
         logging-fstring-interpolation,
+        logging-not-lazy,
         missing-type-doc,
         missing-return-type-doc,
         parameter_documentation  # pylint.extensions.docparams
