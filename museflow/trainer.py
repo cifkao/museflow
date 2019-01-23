@@ -43,7 +43,7 @@ class BasicTrainer:
         def validate_and_save(loss):
             nonlocal best_mean_loss
 
-            mean_loss = self.validate(loss)
+            mean_loss = self.validate(loss, write_summaries=True)
             if mean_loss < best_mean_loss:
                 best_mean_loss = mean_loss
                 self.save_variables('best')
@@ -73,18 +73,25 @@ class BasicTrainer:
 
         validate_and_save(loss)
 
-    def validate(self, loss, write_summaries=True):
-        val_losses = self._dataset_manager.run_over_dataset(self.session, loss,
-                                                            self._val_dataset_name)
-        mean_loss = np.mean(val_losses)
+    def validate(self, loss, metrics=None, write_summaries=False):
+        if metrics is None:
+            metrics = []
+        metric_fetches = [metric.fetches for metric in metrics]
+
+        loss_values, metric_inputs = self._dataset_manager.run_over_dataset(
+            self.session, (loss, metric_fetches), self._val_dataset_name)
+        mean_loss = np.mean(loss_values)
+        metric_values = [metric.compute(inp) for metric, inp in zip(metrics, metric_inputs)]
 
         if write_summaries:
-            val_summary = tf.Summary(value=[
-                tf.Summary.Value(tag='{}/loss'.format(self._val_dataset_name),
-                                 simple_value=mean_loss)
-            ])
-            self._writer.add_summary(val_summary, self._step)
+            self._add_scalar_summary('{}/loss'.format(self._val_dataset_name), mean_loss)
 
+            for metric, value in zip(metrics, metric_values):
+                self._add_scalar_summary('{}/{}'.format(self._val_dataset_name, metric.name),
+                                         metric_value)
+
+        if metrics:
+            return mean_loss, metric_values
         return mean_loss
 
     def save_variables(self, checkpoint_name='latest'):
@@ -103,3 +110,9 @@ class BasicTrainer:
         saver.restore(self.session, checkpoint_file)
         logger.info('Variables restored from {}'.format(checkpoint_file))
         self._step = self.session.run(self._global_step_tensor)
+
+    def _add_scalar_summary(self, name, value):
+        summary = tf.Summary(value=[
+            tf.Summary.Value(tag=name, simple_value=value)
+        ])
+        self._writer.add_summary(summary, self._step)
