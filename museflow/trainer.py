@@ -43,7 +43,7 @@ class BasicTrainer:
         def validate_and_save(loss):
             nonlocal best_mean_loss
 
-            mean_loss = self.validate(loss)
+            mean_loss = self.validate(loss, write_summaries=True)
             if mean_loss < best_mean_loss:
                 best_mean_loss = mean_loss
                 self.save_variables('best')
@@ -73,17 +73,13 @@ class BasicTrainer:
 
         validate_and_save(loss)
 
-    def validate(self, loss, write_summaries=True):
+    def validate(self, loss, write_summaries=False):
         val_losses = self._dataset_manager.run_over_dataset(self.session, loss,
                                                             self._val_dataset_name)
         mean_loss = np.mean(val_losses)
 
         if write_summaries:
-            val_summary = tf.Summary(value=[
-                tf.Summary.Value(tag='{}/loss'.format(self._val_dataset_name),
-                                 simple_value=mean_loss)
-            ])
-            self._writer.add_summary(val_summary, self._step)
+            self.write_scalar_summary('{}/loss'.format(self._val_dataset_name), mean_loss)
 
         return mean_loss
 
@@ -103,3 +99,9 @@ class BasicTrainer:
         saver.restore(self.session, checkpoint_file)
         logger.info('Variables restored from {}'.format(checkpoint_file))
         self._step = self.session.run(self._global_step_tensor)
+
+    def write_scalar_summary(self, name, value, step=None):
+        summary = tf.Summary(value=[
+            tf.Summary.Value(tag=name, simple_value=value)
+        ])
+        self._writer.add_summary(summary, step if step is not None else self._step)
