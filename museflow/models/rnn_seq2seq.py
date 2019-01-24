@@ -56,13 +56,10 @@ class RNNSeq2Seq(Model):
                                             attention_mechanism=attention,
                                             training=self._is_training)
 
-        # Supply initial state if attention is not used
-        decoder_initial_state = None
-        if not attention:
-            state_projection = self._cfg.configure('state_projection', tf.layers.Dense,
-                                                   units=self._decoder.cell.state_size,
-                                                   name='state_projection')
-            decoder_initial_state = state_projection(encoder_final_state)
+        state_projection = self._cfg.configure('state_projection', tf.layers.Dense,
+                                               units=self._decoder.initial_state_size,
+                                               name='state_projection')
+        decoder_initial_state = state_projection(encoder_final_state)
 
         # Build the training version of the decoder and the training ops
         if train_mode:

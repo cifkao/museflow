@@ -19,6 +19,9 @@ class RNNDecoder(Component):
 
         with self.use_scope():
             cell = self._cfg.configure('cell', tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
+            self._dtype = cell.dtype
+            self.initial_state_size = cell.state_size
+
             cell_dropout = self._cfg.maybe_configure('dropout', DropoutWrapper,
                                                      cell=cell, training=training)
             self.cell = cell_dropout or cell
@@ -43,9 +46,8 @@ class RNNDecoder(Component):
         embedded_inputs = self._embeddings.embed(inputs)
 
         with tf.name_scope('decode_train'):
-            if initial_state is None:
-                initial_state = self.cell.zero_state(batch_size=tf.shape(inputs)[0],
-                                                     dtype=tf.float32)
+            batch_size = tf.shape(inputs)[0]
+            initial_state = self._make_initial_state(batch_size, initial_state)
 
             sequence_length = tf.reduce_sum(target_weights, axis=1)
             helper = tf.contrib.seq2seq.TrainingHelper(
@@ -72,14 +74,24 @@ class RNNDecoder(Component):
         with tf.name_scope('decode_{}'.format(mode)):
             if batch_size is None:
                 batch_size = tf.shape(initial_state)[0]
-            if initial_state is None:
-                initial_state = self.cell.zero_state(batch_size=batch_size,
-                                                     dtype=tf.float32)
+            initial_state = self._make_initial_state(batch_size, initial_state)
+            helper = self._make_helper(batch_size, softmax_temperature, random_seed, mode)
 
-        return self._dynamic_decode(
-            helper=self._make_helper(batch_size, softmax_temperature, random_seed, mode),
-            initial_state=initial_state,
-            max_length=max_length or self._max_length)
+            return self._dynamic_decode(helper=helper,
+                                        initial_state=initial_state,
+                                        max_length=max_length or self._max_length)
+
+    def _make_initial_state(self, batch_size, cell_state=None):
+        if cell_state is None:
+            return self.cell.zero_state(batch_size, dtype=self._dtype)
+
+        if self._attention_mechanism:
+            # self.cell is an instance of AttentionWrapper. We need to get its zero_state and
+            # replace the cell state wrapped in it.
+            wrapper_state = self.cell.zero_state(batch_size, dtype=self._dtype)
+            return wrapper_state.clone(cell_state=cell_state)
+
+        return cell_state
 
     def _make_helper(self, batch_size, softmax_temperature, random_seed, mode):
         helper_kwargs = {
