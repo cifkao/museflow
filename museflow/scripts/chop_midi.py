@@ -18,13 +18,13 @@ def setup_argparser(parser):
     parser.add_argument('-i', '--instrument-re', type=str, default='.*')
     parser.add_argument('-b', '--bars-per-segment', type=lambda l: [int(x) for x in l.split(',')],
                         default=[8])
-    parser.add_argument('-n', '--min-notes-per-segment', type=int, default=2)
+    parser.add_argument('-n', '--min-notes-per-segment', type=int, default=1)
     parser.add_argument('-t', '--force-tempo', type=float, default=None)
     parser.add_argument('--skip-bars', type=int, default=0)
     parser.add_argument('--include-segment-id', action='store_true')
 
 
-def chop_midi(files, instrument_re, bars_per_segment, min_notes_per_segment=2,
+def chop_midi(files, instrument_re, bars_per_segment, min_notes_per_segment=1,
               include_segment_id=False, force_tempo=None, skip_bars=0):
     if isinstance(bars_per_segment, int):
         bars_per_segment = [bars_per_segment]
