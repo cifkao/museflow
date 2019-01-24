@@ -2,6 +2,8 @@
 
 import argparse
 import collections
+import io
+import json
 import math
 import pickle
 import re
@@ -22,6 +24,7 @@ def setup_argparser(parser):
     parser.add_argument('-t', '--force-tempo', type=float, default=None)
     parser.add_argument('--skip-bars', type=int, default=0)
     parser.add_argument('--include-segment-id', action='store_true')
+    parser.add_argument('-f', '--format', choices=['pickle', 'json'], default='pickle')
 
 
 def chop_midi(files, instrument_re, bars_per_segment, min_notes_per_segment=1,
@@ -113,4 +116,9 @@ def main(args):
                             include_segment_id=args.include_segment_id,
                             force_tempo=args.force_tempo,
                             skip_bars=args.skip_bars))
-    pickle.dump(output, args.output_file)
+
+    if args.format == 'pickle':
+        pickle.dump(output, args.output_file)
+    elif args.format == 'json':
+        f = io.TextIOWrapper(args.output_file, encoding='utf-8')
+        json.dump(output, f, default=lambda x: x.__dict__)
