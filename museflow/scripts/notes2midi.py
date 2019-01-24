@@ -15,6 +15,7 @@ def setup_argparser(parser):
     parser.add_argument('--drums', action='store_true')
     parser.add_argument('-p', '--program', type=int, default=None)
     parser.add_argument('--stretch', type=str, default=None)
+    parser.add_argument('--tempo', type=float, default=None)
 
 
 def main(args):
@@ -24,13 +25,19 @@ def main(args):
         else:
             args.program = 0
 
+    tempo = 60.
     if args.stretch:
         # Calculate the time stretch ratio
         if ':' in args.stretch:
             a, b = args.stretch.split(':')
             args.stretch = float(a) / float(b)
+            tempo = float(b)
         else:
             args.stretch = float(args.stretch)
+            tempo = tempo / args.stretch
+
+    if args.tempo:
+        tempo = args.tempo
 
     data = pickle.load(args.input_file)
 
@@ -53,7 +60,7 @@ def main(args):
                 note.start *= args.stretch
                 note.end *= args.stretch
 
-        midi = pretty_midi.PrettyMIDI()
+        midi = pretty_midi.PrettyMIDI(initial_tempo=tempo)
         instrument = pretty_midi.Instrument(name=args.instrument,
                                             program=args.program,
                                             is_drum=args.drums)
