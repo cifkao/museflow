@@ -40,10 +40,11 @@ class RNNGenerator(Model):
                                             training=self._is_training)
 
         # Build the training version of the decoder and the training ops
+        self._training_ops = None
         if train_mode:
             inputs, targets = self._dataset_manager.get_batch()
             _, self._loss = self._decoder.decode_train(inputs, targets)
-            self._init_op, self._train_op, self._train_summary_op = self._make_train_ops()
+            self._training_ops = self._make_train_ops()
 
         # Build the sampling version of the decoder
         self._sample_batch_size = tf.placeholder(tf.int32, [], name='sample_batch_size')
@@ -57,7 +58,7 @@ class RNNGenerator(Model):
         self._trainer = self._cfg.configure('trainer', BasicTrainer,
                                             dataset_manager=self._dataset_manager,
                                             logdir=self._logdir, session=self._session,
-                                            training_placeholder=self._is_training)
+                                            training_ops=self._training_ops)
 
     def _make_data_generator(self, fname):
         with open(fname, 'rb') as f:
@@ -77,11 +78,14 @@ class RNNGenerator(Model):
         tf.summary.scalar('train/loss', self._loss)
         train_summary_op = tf.summary.merge_all()
 
-        return init_op, train_op, train_summary_op
+        return BasicTrainer.TrainingOps(loss=self._loss,
+                                        train_op=train_op,
+                                        init_op=init_op,
+                                        summary_op=train_summary_op,
+                                        training_placeholder=self._is_training)
 
     def train(self):
-        self._trainer.train(train_op=self._train_op, loss=self._loss, init_op=self._init_op,
-                            train_summary_op=self._train_summary_op)
+        self._trainer.train()
 
     def load(self, checkpoint_name='best', checkpoint_file=None):
         self._trainer.load_variables(checkpoint_name, checkpoint_file)
