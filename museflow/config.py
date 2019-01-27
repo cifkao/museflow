@@ -62,10 +62,7 @@ class Configuration:
             The return value of `constructor`, or `None` if `config[config_key]` is `None`.
         """
         config_key, constructor = _expand_args(self.configure, args, 1, None)
-
-        if config_key not in self._subconfigs:
-            raise RuntimeError('Key {} not defined in {}._subconfigs'.format(
-                config_key, type(self).__name__))
+        self._check_key(config_key)
 
         config = self._config_dict.get(config_key, {})
 
@@ -82,11 +79,16 @@ class Configuration:
         Like `_configure`, but returns `None` if the key is not present.
         """
         config_key, constructor = _expand_args(self.maybe_configure, args, 1, None)
+        self._check_key(config_key)
 
-        if config_key in self._subconfigs and config_key not in self._config_dict:
+        if config_key not in self._config_dict:
             return None
 
         return self.configure(config_key, constructor, **kwargs)
+
+    def get(self, key):
+        self._check_key(key)
+        return Configuration(self._config_dict.get(key, {}), configurables=None)
 
     def _configure(self, config_key, config, constructor, kwargs):
         if type(config) is not dict:
@@ -122,6 +124,11 @@ class Configuration:
             raise ConfigError('{} while configuring {} ({!r}): {}'.format(
                 type(e).__name__, config_key, constructor, e
             )).with_traceback(sys.exc_info()[2]) from None
+
+    def _check_key(self, key):
+        if self._subconfigs is not None and key not in self._subconfigs:
+            raise RuntimeError('Key {} not defined in subconfigs of {}'.format(
+                key, type(self).__name__))
 
 
 def configurable(subconfigs=()):
