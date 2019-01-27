@@ -1,3 +1,6 @@
+import random
+
+import numpy as np
 import tensorflow as tf
 
 from museflow import logger
@@ -73,6 +76,7 @@ class DatasetManager:
         self._handles = {}
         self._handle_placeholder = tf.placeholder(tf.string, [], name='dataset_handle')
         self._global_iterator = None
+        self._last_session = None
 
     def add_dataset(self, name, dataset, one_shot=False):
         """Add a new dataset to the collection.
@@ -120,10 +124,14 @@ class DatasetManager:
         if feed_dict is None:
             feed_dict = {}
         if dataset_name is not None:
+            if session is not self._last_session:
+                self._handles.clear()
+
             if dataset_name not in self._handles:
                 iterator = self._iterators[dataset_name]
                 self._handles[dataset_name] = session.run(iterator.string_handle())
             feed_dict[self._handle_placeholder] = self._handles[dataset_name]
+        self._last_session = session
         return session.run(fetches, feed_dict)
 
     def run_over_dataset(self, session, fetches, dataset, feed_dict=None, concat_batches=False):
@@ -209,3 +217,10 @@ def make_simple_dataset(generator, output_types, output_shapes, batch_size=None,
         if batch_size is not None:
             dataset = dataset.padded_batch(batch_size, output_shapes)
         return dataset
+
+
+def set_random_seed(seed):
+    if seed is not None:
+        tf.set_random_seed(seed)
+        random.seed(seed)
+        np.random.seed(seed)

@@ -23,26 +23,11 @@ def main():
     scripts.add_argparsers(subsubparsers)
 
     subparser = subparsers.add_parser('model')
-    subparser.set_defaults(func=_run_model)
     subsubparsers = subparser.add_subparsers(title='models')
-    _add_model_argparsers(subsubparsers)
+    models.add_argparsers(subsubparsers)
 
     args = parser.parse_args()
 
     coloredlogs.install(level='DEBUG', logger=logger, isatty=args.color)
 
     args.func(args)
-
-
-def _add_model_argparsers(subparsers):
-    for model_class in models.MODELS:
-        subparser = subparsers.add_parser(model_class.__name__, description=model_class.__doc__)
-        subparser.set_defaults(model_class=model_class)
-        subparser.add_argument('--config', type=str, help='path to the YAML configuration file')
-        subparser.add_argument('--logdir', type=str, required=True, help='model directory')
-        model_class.setup_argparser(subparser)
-
-
-def _run_model(args):
-    model = args.model_class.from_args(args)
-    model.run_action(args)

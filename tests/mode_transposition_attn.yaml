@@ -1,30 +1,31 @@
+model:
+  embedding_layer:
+    output_size: 42
+  encoder:
+    forward_cell:
+      num_units: 200
+    backward_cell:
+      num_units: 100
+    dropout:
+      input_keep_prob: 0.8
+  attention_mechanism:
+    class: !!python/name:tensorflow.contrib.seq2seq.BahdanauAttention
+    num_units: 23
+  decoder:
+    cell:
+      num_units: 300
+    dropout:
+      input_keep_prob: 0.8
+      state_keep_prob: 0.9
+      variational_recurrent: True
+      input_size: 342  # 42 (embedding size) + 300 (attention output size)
+    max_length: 50
+
 encoding:
   class: !!python/name:museflow.encodings.PerformanceEncoding
   use_velocity: False
   time_unit: 0.1
   max_shift_units: 10
-
-embedding_layer:
-  output_size: 42
-encoder:
-  forward_cell:
-    num_units: 200
-  backward_cell:
-    num_units: 100
-  dropout:
-    input_keep_prob: 0.8
-attention_mechanism:
-  class: !!python/name:tensorflow.contrib.seq2seq.BahdanauAttention
-  num_units: 23
-decoder:
-  cell:
-    num_units: 300
-  dropout:
-    input_keep_prob: 0.8
-    state_keep_prob: 0.9
-    variational_recurrent: True
-    input_size: 342  # 42 (embedding size) + 300 (attention output size)
-  max_length: 50
 
 trainer:
   logging_period: 4

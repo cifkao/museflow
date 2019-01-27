@@ -1,27 +1,29 @@
+model:
+  embedding_layer:
+    output_size: 42
+  encoder:
+    forward_cell:
+      num_units: 200
+    backward_cell:
+      num_units: 100
+  decoder:
+    cell:
+      num_units: 300
+    max_length: 50
+
+  training:
+    lr_decay:
+      class: !!python/name:tensorflow.train.exponential_decay
+      learning_rate: 1.0e-3
+      decay_steps: 10
+      decay_rate: 0.5
+
 encoding:
   class: !!python/name:museflow.encodings.PerformanceEncoding
   use_velocity: False
   time_unit: 0.1
   max_shift_units: 10
 
-embedding_layer:
-  output_size: 42
-encoder:
-  forward_cell:
-    num_units: 200
-  backward_cell:
-    num_units: 100
-decoder:
-  cell:
-    num_units: 300
-  max_length: 50
-
-training:
-  lr_decay:
-    class: !!python/name:tensorflow.train.exponential_decay
-    learning_rate: 1.0e-3
-    decay_steps: 10
-    decay_rate: 0.5
 trainer:
   logging_period: 8
   validation_period: 80

@@ -5,7 +5,6 @@ configuration dictionary, e.g.:
 
 ```
 config_dict = {
-    'say_hello': True,
     'encoder': {
         'cell': {
             'num_units': 500
@@ -14,6 +13,7 @@ config_dict = {
     'decoder': {
         'size': 1000
     }
+    'say_hello': True,
 }
 configure(MyModel, config_dict, logdir='/tmp/logdir')
 ```
@@ -25,11 +25,9 @@ create other configurable objects inside the model. As an example:
 
 ```
 @configurable(['encoder', 'decoder'])
-class MyModel(Model):
+class MyModel:
 
-    def __init__(self, logdir, say_hello=False):
-        Model.__init__(self, logdir)
-
+    def __init__(self, say_hello=False):
         if say_hello:
             logger.info('Hello world!')
         encoder = self._cfg.configure('encoder', MyEncoder)

@@ -1,124 +1,139 @@
 import argparse
+import os
 import pickle
 
 import tensorflow as tf
+import yaml
 
+from museflow import logger
 from museflow.components import RNNDecoder, EmbeddingLayer
-from museflow.config import configurable
-from museflow.model_utils import DatasetManager, create_train_op, prepare_train_and_val_data
+from museflow.config import configurable, configure
+from museflow.model_utils import (DatasetManager, create_train_op, prepare_train_and_val_data,
+                                  set_random_seed)
 from museflow.trainer import BasicTrainer
-from .model import Model
 
 
-@configurable(['data_prep', 'encoding', 'embedding_layer', 'decoder', 'trainer', 'training'])
-class RNNGenerator(Model):
+@configurable(['embedding_layer', 'decoder', 'training'])
+class RNNGenerator:
 
-    def __init__(self, logdir, train_mode, **kwargs):
-        Model.__init__(self, logdir=logdir, **kwargs)
+    def __init__(self, train_mode, vocabulary, sampling_seed=None):
         self._train_mode = train_mode
+        self._is_training = tf.placeholder_with_default(False, [], name='is_training')
 
-        self._encoding = self._cfg.configure('encoding')
+        self.dataset_manager = DatasetManager(
+            output_types=(tf.int32, tf.int32),
+            output_shapes=([None, None], [None, None]))
 
-        with tf.name_scope('data'):
-            self._dataset_manager = DatasetManager()
-            if train_mode:
-                # Configure the dataset manager with the training and validation data.
-                self._cfg.configure(
-                    'data_prep', prepare_train_and_val_data,
-                    dataset_manager=self._dataset_manager,
-                    train_generator=self._make_data_generator(self._args['train_data']),
-                    val_generator=self._make_data_generator(self._args['val_data']),
-                    output_types=(tf.int32, tf.int32),
-                    output_shapes=([None], [None]))
-
-        vocabulary = self._encoding.vocabulary
         embeddings = self._cfg.configure('embedding_layer', EmbeddingLayer,
                                          input_size=len(vocabulary))
-        self._decoder = self._cfg.configure('decoder', RNNDecoder,
-                                            vocabulary=vocabulary,
-                                            embedding_layer=embeddings,
-                                            training=self._is_training)
+        decoder = self._cfg.configure('decoder', RNNDecoder,
+                                      vocabulary=vocabulary,
+                                      embedding_layer=embeddings,
+                                      training=self._is_training)
 
         # Build the training version of the decoder and the training ops
-        self._training_ops = None
+        self.training_ops = None
         if train_mode:
-            inputs, targets = self._dataset_manager.get_batch()
-            _, self._loss = self._decoder.decode_train(inputs, targets)
-            self._training_ops = self._make_train_ops()
+            inputs, targets = self.dataset_manager.get_batch()
+            _, self.loss = decoder.decode_train(inputs, targets)
+            self.training_ops = self._make_train_ops()
 
         # Build the sampling version of the decoder
-        self._sample_batch_size = tf.placeholder(tf.int32, [], name='sample_batch_size')
-        self._softmax_temperature = tf.placeholder(tf.float32, [], name='softmax_temperature')
-        self._sample_outputs = self._decoder.decode(mode='sample',
-                                                    batch_size=self._sample_batch_size,
-                                                    softmax_temperature=self._softmax_temperature,
-                                                    random_seed=self._args['sampling_seed'])
-
-        self._session = tf.Session()
-        self._trainer = self._cfg.configure('trainer', BasicTrainer,
-                                            dataset_manager=self._dataset_manager,
-                                            logdir=self._logdir, session=self._session,
-                                            training_ops=self._training_ops)
-
-    def _make_data_generator(self, fname):
-        with open(fname, 'rb') as f:
-            data = pickle.load(f)
-
-        def generator():
-            for _, example in data:
-                encoded = self._encoding.encode(example, add_start=True, add_end=True)
-                yield encoded[:-1], encoded[1:]
-
-        return generator
+        self.sample_batch_size = tf.placeholder(tf.int32, [], name='sample_batch_size')
+        self.softmax_temperature = tf.placeholder(tf.float32, [], name='softmax_temperature')
+        self.sample_outputs = decoder.decode(mode='sample',
+                                             batch_size=self.sample_batch_size,
+                                             softmax_temperature=self.softmax_temperature,
+                                             random_seed=sampling_seed)
 
     def _make_train_ops(self):
-        train_op = self._cfg.configure('training', create_train_op, loss=self._loss)
+        train_op = self._cfg.configure('training', create_train_op, loss=self.loss)
         init_op = tf.global_variables_initializer()
 
-        tf.summary.scalar('train/loss', self._loss)
+        tf.summary.scalar('train/loss', self.loss)
         train_summary_op = tf.summary.merge_all()
 
-        return BasicTrainer.TrainingOps(loss=self._loss,
+        return BasicTrainer.TrainingOps(loss=self.loss,
                                         train_op=train_op,
                                         init_op=init_op,
                                         summary_op=train_summary_op,
                                         training_placeholder=self._is_training)
 
-    def train(self):
-        self._trainer.train()
-
-    def load(self, checkpoint_name='best', checkpoint_file=None):
-        self._trainer.load_variables(checkpoint_name, checkpoint_file)
-
-    def sample(self, batch_size, softmax_temperature=1.):
-        _, sample_ids = self._session.run(
-            self._sample_outputs,
-            {self._sample_batch_size: batch_size, self._softmax_temperature: softmax_temperature}
+    def sample(self, session, batch_size, softmax_temperature=1.):
+        _, sample_ids = session.run(
+            self.sample_outputs,
+            {self.sample_batch_size: batch_size, self.softmax_temperature: softmax_temperature}
         )
-        return [self._encoding.decode(seq) for seq in sample_ids]
+        return sample_ids
 
-    @classmethod
-    def from_args(cls, args):
-        return cls.from_yaml(args.logdir, args.config,
-                             train_mode=(args.action == 'train'),
-                             sampling_seed=args.sampling_seed if args.action == 'sample' else None)
 
-    @classmethod
-    def setup_argparser(cls, parser):
-        subparsers = parser.add_subparsers(title='action', dest='action')
-        subparsers.add_parser('train')
-        subparser = subparsers.add_parser('sample')
-        subparser.add_argument('output_file', type=argparse.FileType('wb'), metavar='OUTPUTFILE')
-        subparser.add_argument('--checkpoint', default=None, type=str)
-        subparser.add_argument('--batch-size', default=1, type=int)
-        subparser.add_argument('--softmax-temperature', default=1., type=float)
-        subparser.add_argument('--seed', default=None, type=int, dest='sampling_seed')
+def setup_argparser(parser):
+    subparsers = parser.add_subparsers(title='action', dest='action')
+    subparsers.add_parser('train')
+    subparser = subparsers.add_parser('sample')
+    subparser.add_argument('output_file', type=argparse.FileType('wb'), metavar='OUTPUTFILE')
+    subparser.add_argument('--checkpoint', default=None, type=str)
+    subparser.add_argument('--batch-size', default=1, type=int)
+    subparser.add_argument('--softmax-temperature', default=1., type=float)
+    subparser.add_argument('--seed', default=None, type=int, dest='sampling_seed')
 
-    def run_action(self, args):
-        if args.action == 'train':
-            self.train()
-        elif args.action == 'sample':
-            self.load(checkpoint_file=args.checkpoint)
-            output = self.sample(batch_size=args.batch_size,
-                                 softmax_temperature=args.softmax_temperature)
-            pickle.dump(output, args.output_file)
+
+def main(args):
+    config_file = args.config or os.path.join(args.logdir, 'model.yaml')
+    with open(config_file, 'rb') as f:
+        config_dict = yaml.load(f)
+    logger.debug(config_dict)
+
+    model, trainer, encoding = configure(
+        _init, config_dict, logdir=args.logdir,
+        train_mode=(args.action == 'train'),
+        sampling_seed=getattr(args, 'seed', None))
+
+    if args.action == 'train':
+        trainer.train()
+    elif args.action == 'sample':
+        trainer.load_variables(checkpoint_file=args.checkpoint)
+        output_ids = model.sample(session=trainer.session,
+                                  batch_size=args.batch_size,
+                                  softmax_temperature=args.softmax_temperature)
+        output = [encoding.decode(seq) for seq in output_ids]
+        pickle.dump(output, args.output_file)
+
+
+@configurable(['encoding', 'model', 'data_prep', 'trainer'])
+def _init(cfg, logdir, train_mode, **kwargs):
+    set_random_seed(kwargs.get('random_seed'))
+
+    encoding = cfg.configure('encoding')
+    model = cfg.configure('model', RNNGenerator,
+                          train_mode=train_mode,
+                          vocabulary=encoding.vocabulary,
+                          sampling_seed=kwargs.get('sampling_seed'))
+    trainer = cfg.configure('trainer', BasicTrainer,
+                            dataset_manager=model.dataset_manager,
+                            training_ops=model.training_ops,
+                            logdir=logdir)
+
+    if train_mode:
+        # Configure the dataset manager with the training and validation data.
+        cfg.configure(
+            'data_prep', prepare_train_and_val_data,
+            dataset_manager=model.dataset_manager,
+            train_generator=_make_data_generator(encoding, kwargs['train_data']),
+            val_generator=_make_data_generator(encoding, kwargs['val_data']),
+            output_types=(tf.int32, tf.int32),
+            output_shapes=([None], [None]))
+
+    return model, trainer, encoding
+
+
+def _make_data_generator(encoding, fname):
+    with open(fname, 'rb') as f:
+        data = pickle.load(f)
+
+    def generator():
+        for _, example in data:
+            encoded = encoding.encode(example, add_start=True, add_end=True)
+            yield encoded[:-1], encoded[1:]
+
+    return generator
