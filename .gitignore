@@ -105,3 +105,6 @@ venv.bak/
 
 # Local history
 .history-*
+
+# vim swap files
+.*.swp
