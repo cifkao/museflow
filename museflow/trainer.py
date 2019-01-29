@@ -130,7 +130,7 @@ class BasicTrainer:
             latest_filename=checkpoint_name + '_checkpoint',
             global_step=self._step)
 
-    def load_variables(self, checkpoint_name='latest', checkpoint_file=None):
+    def load_variables(self, checkpoint_name='best', checkpoint_file=None):
         saver = self._best_saver if checkpoint_name == 'best' else self._latest_saver
         if not checkpoint_file:
             checkpoint_file = tf.train.latest_checkpoint(self._logdir,
