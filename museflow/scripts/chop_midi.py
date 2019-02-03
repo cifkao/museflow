@@ -17,7 +17,15 @@ def setup_argparser(parser):
     parser.set_defaults(func=main)
     parser.add_argument('input_files', type=argparse.FileType('rb'), nargs='+', metavar='FILE')
     parser.add_argument('output_file', type=argparse.FileType('wb'), metavar='OUTPUTFILE')
+
     parser.add_argument('-i', '--instrument-re', type=str, default='.*')
+    parser.add_argument('-p', '--program', type=lambda l: [int(x) for x in l.split(',')],
+                        default=None)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--drums', action='store_true')
+    group.add_argument('--no-drums', action='store_false', dest='drums')
+    group.set_defaults(drums=None)
+
     parser.add_argument('-b', '--bars-per-segment', type=lambda l: [int(x) for x in l.split(',')],
                         default=[8])
     parser.add_argument('-n', '--min-notes-per-segment', type=int, default=1)
@@ -27,8 +35,8 @@ def setup_argparser(parser):
     parser.add_argument('-f', '--format', choices=['pickle', 'json'], default='pickle')
 
 
-def chop_midi(files, instrument_re, bars_per_segment, min_notes_per_segment=1,
-              include_segment_id=False, force_tempo=None, skip_bars=0):
+def chop_midi(files, bars_per_segment, instrument_re=None, programs=None, drums=None,
+              min_notes_per_segment=1, include_segment_id=False, force_tempo=None, skip_bars=0):
     if isinstance(bars_per_segment, int):
         bars_per_segment = [bars_per_segment]
     bars_per_segment = list(bars_per_segment)
@@ -40,10 +48,17 @@ def chop_midi(files, instrument_re, bars_per_segment, min_notes_per_segment=1,
         if force_tempo is not None:
             normalize_tempo(midi, force_tempo)
 
-        instruments = [i for i in midi.instruments if re.search(instrument_re, i.name)]
+        instruments = midi.instruments
+        if instrument_re is not None:
+            instruments = [i for i in instruments if re.search(instrument_re, i.name)]
+        if programs is not None:
+            instruments = [i for i in instruments if i.program + 1 in programs]
+        if drums is not None:
+            # If True, match only drums; if False, match only non-drums.
+            instruments = [i for i in instruments if i.is_drum is drums]
+
         if not instruments:
-            logger.warning('Regex {} does not match any track in file {}; skipping file'.format(
-                instrument_re, file_id))
+            logger.warning(f'Could not match any track in file {file_id}; skipping file')
             continue
         all_notes = [n for i in instruments for n in i.notes]
         all_notes.sort(key=lambda n: n.start)
@@ -113,8 +128,10 @@ def normalize_tempo(midi, new_tempo=60):
 
 def main(args):
     output = list(chop_midi(files=args.input_files,
-                            instrument_re=args.instrument_re,
                             bars_per_segment=args.bars_per_segment,
+                            instrument_re=args.instrument_re,
+                            programs=args.program,
+                            drums=args.drums,
                             min_notes_per_segment=args.min_notes_per_segment,
                             include_segment_id=args.include_segment_id,
                             force_tempo=args.force_tempo,
