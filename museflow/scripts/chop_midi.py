@@ -50,8 +50,11 @@ def chop_midi(files, instrument_re, bars_per_segment, min_notes_per_segment=1,
 
         def is_overlapping(note, start, end):
             """Check whether the given note overlaps with the given interval."""
-            return ((note.end > start or math.isclose(note.end, start)) and
-                    (note.start < end and not math.isclose(note.start, end)))
+            # If a note's start "isclose" to a segment boundary, we want to include it
+            # in the following segment only.
+            # Note that if the note is extremely short, it might end before the segment starts!
+            return ((note.end > start or math.isclose(note.start, start)) and
+                    note.start < end and not math.isclose(note.start, end))
 
         downbeats = midi.get_downbeats()[skip_bars:]
         for bps in bars_per_segment:
@@ -76,7 +79,7 @@ def chop_midi(files, instrument_re, bars_per_segment, min_notes_per_segment=1,
                 notes_clipped = [
                     pretty_midi.Note(
                         start=max(0., n.start - start),
-                        end=min(n.end, end) - start,
+                        end=max(0., min(n.end, end) - start),
                         pitch=n.pitch,
                         velocity=n.velocity)
                     for n in notes
