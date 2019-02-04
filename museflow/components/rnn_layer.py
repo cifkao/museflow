@@ -6,9 +6,9 @@ from .component import Component, using_scope
 
 
 @configurable(['forward_cell', 'backward_cell', 'dropout'])
-class RNNEncoder(Component):
+class RNNLayer(Component):
 
-    def __init__(self, training=None, name='encoder'):
+    def __init__(self, training=None, name='rnn'):
         Component.__init__(self, name=name)
 
         with self.use_scope():

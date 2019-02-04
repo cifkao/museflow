@@ -6,7 +6,7 @@ import tensorflow as tf
 import yaml
 
 from museflow import logger
-from museflow.components import EmbeddingLayer, RNNEncoder, RNNDecoder
+from museflow.components import EmbeddingLayer, RNNLayer, RNNDecoder
 from museflow.config import configurable, configure
 from museflow.model_utils import (DatasetManager, create_train_op, prepare_train_and_val_data,
                                   make_simple_dataset, set_random_seed)
@@ -30,8 +30,9 @@ class RNNSeq2Seq:
 
         embeddings = self._cfg.configure('embedding_layer', EmbeddingLayer,
                                          input_size=len(vocabulary))
-        encoder = self._cfg.configure('encoder', RNNEncoder,
-                                      training=self._is_training)
+        encoder = self._cfg.configure('encoder', RNNLayer,
+                                      training=self._is_training,
+                                      name='encoder')
         encoder_states, encoder_final_state = encoder.encode(embeddings.embed(inputs))
 
         with tf.variable_scope('attention'):
