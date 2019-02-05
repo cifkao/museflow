@@ -13,6 +13,9 @@ import pretty_midi
 from museflow import logger
 
 
+_MIN_DURATION = 1e-5  # Most likely below MIDI resolution
+
+
 def setup_argparser(parser):
     parser.set_defaults(func=main)
     parser.add_argument('input_files', type=argparse.FileType('rb'), nargs='+', metavar='FILE')
@@ -99,6 +102,8 @@ def chop_midi(files, bars_per_segment, instrument_re=None, programs=None, drums=
                         velocity=n.velocity)
                     for n in notes
                 ]
+                # Remove extremely short notes that could have been created by clipping.
+                notes_clipped = [n for n in notes_clipped if n.end-n.start >= _MIN_DURATION]
 
                 if len(notes_clipped) < min_notes_per_segment:
                     continue
