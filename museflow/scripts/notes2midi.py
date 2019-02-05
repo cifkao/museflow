@@ -60,7 +60,7 @@ def main(args):
                 note.start *= args.stretch
                 note.end *= args.stretch
 
-        midi = pretty_midi.PrettyMIDI(initial_tempo=tempo)
+        midi = pretty_midi.PrettyMIDI(initial_tempo=tempo, resolution=480)
         instrument = pretty_midi.Instrument(name=args.instrument,
                                             program=args.program,
                                             is_drum=args.drums)
