@@ -9,7 +9,7 @@ from .component import Component, using_scope
 class RNNDecoder(Component):
 
     def __init__(self, vocabulary, embedding_layer, attention_mechanism=None, max_length=None,
-                 training=None, name='decoder'):
+                 cell_wrap_fn=None, training=None, name='decoder'):
         Component.__init__(self, name=name)
 
         self._vocabulary = vocabulary
@@ -19,6 +19,8 @@ class RNNDecoder(Component):
 
         with self.use_scope():
             cell = self._cfg.configure('cell', tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
+            if cell_wrap_fn:
+                cell = cell_wrap_fn(cell)
             self._dtype = cell.dtype
             self.initial_state_size = cell.state_size
 
