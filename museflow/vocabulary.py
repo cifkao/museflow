@@ -2,10 +2,13 @@ class Vocabulary:
     """Takes care of converting back and forth between tokens and integer IDs."""
 
     def __init__(self, wordlist, pad_token='<pad>', start_token='<s>', end_token='</s>'):
-        if pad_token not in wordlist:
-            wordlist.insert(0, pad_token)
-        elif wordlist[0] != pad_token:
-            raise ValueError("<pad> has index {}, expected 0".format(wordlist.index(pad_token)))
+        wordlist = list(wordlist)
+
+        if pad_token:
+            if pad_token not in wordlist:
+                wordlist.insert(0, pad_token)
+            elif wordlist[0] != pad_token:
+                raise ValueError("<pad> has index {}, expected 0".format(wordlist.index(pad_token)))
 
         if start_token and start_token not in wordlist:
             wordlist.append(start_token)
@@ -21,7 +24,7 @@ class Vocabulary:
         self.end_token = end_token
 
         self._token2id = {val: i for i, val in enumerate(wordlist)}
-        self.pad_id = self._token2id[pad_token]
+        self.pad_id = self._token2id.get(pad_token)
         self.start_id = self._token2id.get(start_token)
         self.end_id = self._token2id.get(end_token)
 
