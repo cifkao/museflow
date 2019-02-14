@@ -19,3 +19,6 @@ class EmbeddingLayer(Component):
     @using_scope
     def embed(self, x):
         return tf.nn.embedding_lookup(self.embedding_matrix, x)
+
+    def __call__(self, inputs):
+        return self.embed(inputs)

@@ -25,7 +25,7 @@ class RNNLayer(Component):
                 self._bw_cell = bw_cell_dropout or self._bw_cell
 
     @using_scope
-    def encode(self, inputs):
+    def apply(self, inputs):
         if not self._bw_cell:
             return tf.nn.dynamic_rnn(self._fw_cell, inputs, dtype=tf.float32)
 
@@ -35,3 +35,6 @@ class RNNLayer(Component):
         final_states = tf.concat(final_states, -1)
 
         return outputs, final_states
+
+    def __call__(self, inputs):
+        return self.apply(inputs)

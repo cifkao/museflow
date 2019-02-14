@@ -33,7 +33,7 @@ class RNNSeq2Seq:
         encoder = self._cfg.configure('encoder', RNNLayer,
                                       training=self._is_training,
                                       name='encoder')
-        encoder_states, encoder_final_state = encoder.encode(embeddings.embed(inputs))
+        encoder_states, encoder_final_state = encoder.apply(embeddings.embed(inputs))
 
         with tf.variable_scope('attention'):
             attention = self._cfg.maybe_configure('attention_mechanism', memory=encoder_states)
