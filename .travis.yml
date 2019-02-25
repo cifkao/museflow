@@ -5,19 +5,19 @@ jobs:
   include:
     - name: 'Pylint'
       install:
-        - pip install -e .
+        - pip install .
         - pip install pylint
       script:
         - pylint museflow
     - name: 'Unit tests'
       install:
-        - pip install -e .
+        - pip install .
         - pip install pytest
       script:
         - PYTHONWARNINGS=ignore::DeprecationWarning pytest museflow
     - name: 'Model tests'
       install:
-        - pip install -e .
+        - pip install .
       script:
         - cd tests; ./test_models.sh
     - name: 'Code style'

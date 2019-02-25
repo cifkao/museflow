@@ -4,7 +4,7 @@ setuptools.setup(
     name="museflow",
     author="Ondřej Cífka",
     description="Music sequence learning toolkit",
-    packages=['museflow'],
+    packages=setuptools.find_packages(),
     entry_points={
         'console_scripts': [
             'museflow = museflow.main:main'
