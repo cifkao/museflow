@@ -112,7 +112,8 @@ def _init(cfg, logdir, train_mode, **kwargs):
     trainer = cfg.configure('trainer', BasicTrainer,
                             dataset_manager=model.dataset_manager,
                             training_ops=model.training_ops,
-                            logdir=logdir)
+                            logdir=logdir,
+                            write_summaries=train_mode)
 
     if train_mode:
         # Configure the dataset manager with the training and validation data.

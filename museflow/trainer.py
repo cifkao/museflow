@@ -12,8 +12,8 @@ from museflow.config import configurable
 class BasicTrainer:
     """A class implementing a basic training/validation loop, model saving and model loading."""
 
-    def __init__(self, dataset_manager, logdir, logging_period,
-                 validation_period=None, training_ops=None, session=None,
+    def __init__(self, dataset_manager, logdir, logging_period, validation_period=None,
+                 training_ops=None, session=None, write_summaries=True,
                  train_dataset_name='train', val_dataset_name='val'):
         self.session = session or tf.Session()
         self._dataset_manager = dataset_manager
@@ -31,7 +31,10 @@ class BasicTrainer:
             self._ops.training_placeholder = tf.placeholder_with_default(False, [],
                                                                          name='is_training')
 
-        self._writer = tf.summary.FileWriter(logdir=self._logdir, graph=tf.get_default_graph())
+        if write_summaries:
+            self._writer = tf.summary.FileWriter(logdir=self._logdir, graph=tf.get_default_graph())
+        else:
+            self._writer = None
         with tf.name_scope('savers'):
             self._latest_saver = self._cfg.configure('latest_saver', tf.train.Saver,
                                                      name='latest', max_to_keep=2)
@@ -105,7 +108,7 @@ class BasicTrainer:
         self._step = self.session.run(self._global_step_tensor)
 
         if self._step % self._logging_period == 0:
-            if write_summaries and train_summary:
+            if write_summaries and train_summary and self._writer:
                 self._writer.add_summary(train_summary, self._step)
             if log:
                 logger.info('step: {}, loss: {}'.format(self._step, train_loss))
@@ -143,7 +146,8 @@ class BasicTrainer:
         summary = tf.Summary(value=[
             tf.Summary.Value(tag=name, simple_value=value)
         ])
-        self._writer.add_summary(summary, step if step is not None else self._step)
+        if self._writer:
+            self._writer.add_summary(summary, step if step is not None else self._step)
 
     class TrainingOps:
         """
