@@ -1,9 +1,10 @@
 import argparse
+import logging
 import sys
 
 import coloredlogs
 
-from museflow import scripts, models, logger
+from museflow import scripts, models
 
 
 def main():
@@ -28,6 +29,7 @@ def main():
 
     args = parser.parse_args()
 
-    coloredlogs.install(level='DEBUG', logger=logger, isatty=args.color)
+    coloredlogs.install(level='DEBUG', logger=logging.getLogger(), isatty=args.color)
+    logging.captureWarnings(True)
 
     args.func(args)
