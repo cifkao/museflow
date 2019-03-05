@@ -60,10 +60,29 @@ def main(args):
                 note.start *= args.stretch
                 note.end *= args.stretch
 
+        # Some notes might be overlapping, we need to split them between multiple tracks.
+        # TODO: This calls for a more efficient implementation.
+        tracks = [[]]
+        for note in notes:
+            for track in tracks:
+                # Find the first track without an overlapping note.
+                if not any(note2.pitch == note.pitch
+                           and note2.start < note.end
+                           and note2.end > note.start
+                           for note2 in track):
+                    track.append(note)
+                    break
+
+            # Always keep the last track empty
+            if tracks[-1]:
+                tracks.append([])
+        del tracks[-1]
+
         midi = pretty_midi.PrettyMIDI(initial_tempo=tempo, resolution=480)
-        instrument = pretty_midi.Instrument(name=args.instrument,
-                                            program=args.program,
-                                            is_drum=args.drums)
-        instrument.notes[:] = notes
-        midi.instruments.append(instrument)
+        for track in tracks:
+            instrument = pretty_midi.Instrument(name=args.instrument,
+                                                program=args.program,
+                                                is_drum=args.drums)
+            instrument.notes[:] = track
+            midi.instruments.append(instrument)
         midi.write(os.path.join(args.output_dir, fname))
