@@ -28,7 +28,7 @@ limit-inference-results=100
 
 # List of plugins (as comma separated values of python modules names) to load,
 # usually to register additional checkers.
-load-plugins=pylint.extensions.docparams
+load-plugins=pylint.extensions.docparams,pylint_quotes
 
 # Pickle collected data for later comparisons.
 persistent=yes
@@ -179,6 +179,10 @@ enable=c-extension-no-member
        missing-yield-doc,
        missing-param-doc,
        differing-param-doc,
+
+       # pylint_quotes
+       invalid-string-quote,
+       invalid-docstring-quote,
 
 
 [REPORTS]
@@ -427,6 +431,9 @@ variable-naming-style=snake_case
 # Regular expression matching correct variable names. Overrides variable-
 # naming-style.
 #variable-rgx=
+
+# For pylint_quotes
+string-quote=single-avoid-escape
 
 
 [SIMILARITIES]

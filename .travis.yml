@@ -6,7 +6,7 @@ jobs:
     - name: 'Pylint'
       install:
         - pip install .
-        - pip install pylint
+        - pip install pylint pylint-quotes
       script:
         - pylint museflow
     - name: 'Unit tests'

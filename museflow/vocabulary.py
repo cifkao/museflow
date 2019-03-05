@@ -8,7 +8,7 @@ class Vocabulary:
             if pad_token not in wordlist:
                 wordlist.insert(0, pad_token)
             elif wordlist[0] != pad_token:
-                raise ValueError("<pad> has index {}, expected 0".format(wordlist.index(pad_token)))
+                raise ValueError('<pad> has index {}, expected 0'.format(wordlist.index(pad_token)))
 
         if start_token and start_token not in wordlist:
             wordlist.append(start_token)
@@ -16,7 +16,7 @@ class Vocabulary:
             wordlist.append(end_token)
 
         if len(set(wordlist)) != len(wordlist):
-            raise ValueError("Vocabulary has duplicate items")
+            raise ValueError('Vocabulary has duplicate items')
 
         self._id2token = wordlist
         self.pad_token = pad_token
