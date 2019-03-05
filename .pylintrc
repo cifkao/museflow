@@ -147,6 +147,7 @@ disable=C,
         logging-not-lazy,
         missing-type-doc,
         missing-return-type-doc,
+        fixme,
         parameter_documentation  # pylint.extensions.docparams
 
 # Enable the message, report, category or checker with the given id(s). You can
