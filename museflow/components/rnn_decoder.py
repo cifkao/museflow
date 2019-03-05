@@ -16,6 +16,7 @@ class RNNDecoder(Component):
         self._embeddings = embedding_layer
         self._attention_mechanism = attention_mechanism
         self._max_length = max_length
+        self._training = training
 
         with self.use_scope():
             cell = self._cfg.configure('cell', tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
@@ -25,7 +26,7 @@ class RNNDecoder(Component):
             self.initial_state_size = cell.state_size
 
             cell_dropout = self._cfg.maybe_configure('dropout', DropoutWrapper,
-                                                     cell=cell, training=training)
+                                                     cell=cell, training=self._training)
             self.cell = cell_dropout or cell
 
             if self._attention_mechanism:
@@ -54,7 +55,8 @@ class RNNDecoder(Component):
         # positions with zeros.
         dropped_inputs = self._cfg.maybe_configure(
             'token_dropout', tf.layers.dropout,
-            inputs=embedded_inputs, noise_shape=[batch_size, inputs_shape[1], 1])
+            inputs=embedded_inputs, noise_shape=[batch_size, inputs_shape[1], 1],
+            training=self._training)
         if dropped_inputs is not None:
             embedded_inputs = dropped_inputs
 
