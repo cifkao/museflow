@@ -3,11 +3,10 @@ import os
 import pickle
 
 import tensorflow as tf
-import yaml
 
 from museflow import logger
 from museflow.components import EmbeddingLayer, RNNLayer, RNNDecoder
-from museflow.config import configurable, configure
+from museflow.config import Configuration, configurable
 from museflow.model_utils import (DatasetManager, create_train_op, prepare_train_and_val_data,
                                   make_simple_dataset, set_random_seed)
 from museflow.trainer import BasicTrainer
@@ -28,24 +27,24 @@ class RNNSeq2Seq:
         inputs, decoder_inputs, decoder_targets = self.dataset_manager.get_batch()
         batch_size = tf.shape(inputs)[0]
 
-        embeddings = self._cfg.configure('embedding_layer', EmbeddingLayer,
-                                         input_size=len(vocabulary))
-        encoder = self._cfg.configure('encoder', RNNLayer,
-                                      training=self._is_training,
-                                      name='encoder')
+        embeddings = self._cfg['embedding_layer'].configure(EmbeddingLayer,
+                                                            input_size=len(vocabulary))
+        encoder = self._cfg['encoder'].configure(RNNLayer,
+                                                 training=self._is_training,
+                                                 name='encoder')
         encoder_states, encoder_final_state = encoder.apply(embeddings.embed(inputs))
 
         with tf.variable_scope('attention'):
-            attention = self._cfg.maybe_configure('attention_mechanism', memory=encoder_states)
-        decoder = self._cfg.configure('decoder', RNNDecoder,
-                                      vocabulary=vocabulary,
-                                      embedding_layer=embeddings,
-                                      attention_mechanism=attention,
-                                      training=self._is_training)
+            attention = self._cfg['attention_mechanism'].maybe_configure(memory=encoder_states)
+        decoder = self._cfg['decoder'].configure(RNNDecoder,
+                                                 vocabulary=vocabulary,
+                                                 embedding_layer=embeddings,
+                                                 attention_mechanism=attention,
+                                                 training=self._is_training)
 
-        state_projection = self._cfg.configure('state_projection', tf.layers.Dense,
-                                               units=decoder.initial_state_size,
-                                               name='state_projection')
+        state_projection = self._cfg['state_projection'].configure(tf.layers.Dense,
+                                                                   units=decoder.initial_state_size,
+                                                                   name='state_projection')
         decoder_initial_state = state_projection(encoder_final_state)
 
         # Build the training version of the decoder and the training ops
@@ -67,7 +66,7 @@ class RNNSeq2Seq:
                                              batch_size=batch_size)
 
     def _make_train_ops(self):
-        train_op = self._cfg.configure('training', create_train_op, loss=self.loss)
+        train_op = self._cfg['training'].configure(create_train_op, loss=self.loss)
         init_op = tf.global_variables_initializer()
 
         tf.summary.scalar('train/loss', self.loss)
@@ -104,11 +103,11 @@ def setup_argparser(parser):
 def main(args):
     config_file = args.config or os.path.join(args.logdir, 'model.yaml')
     with open(config_file, 'rb') as f:
-        config_dict = yaml.load(f)
-    logger.debug(config_dict)
+        config = Configuration.from_yaml(f)
+    logger.debug(config)
 
-    model, trainer, encoding = configure(
-        _init, config_dict, logdir=args.logdir,
+    model, trainer, encoding = config.configure(
+        _init, logdir=args.logdir,
         train_mode=(args.action == 'train'),
         sampling_seed=getattr(args, 'seed', None))
 
@@ -132,24 +131,24 @@ def main(args):
 def _init(cfg, logdir, train_mode, **kwargs):
     set_random_seed(kwargs.get('random_seed'))
 
-    encoding = cfg.configure('encoding')
-    model = cfg.configure('model', RNNSeq2Seq,
-                          train_mode=train_mode,
-                          vocabulary=encoding.vocabulary,
-                          sampling_seed=kwargs.get('sampling_seed'))
-    trainer = cfg.configure('trainer', BasicTrainer,
-                            dataset_manager=model.dataset_manager,
-                            training_ops=model.training_ops,
-                            logdir=logdir,
-                            write_summaries=train_mode)
+    encoding = cfg['encoding'].configure()
+    model = cfg['model'].configure(RNNSeq2Seq,
+                                   train_mode=train_mode,
+                                   vocabulary=encoding.vocabulary,
+                                   sampling_seed=kwargs.get('sampling_seed'))
+    trainer = cfg['trainer'].configure(BasicTrainer,
+                                       dataset_manager=model.dataset_manager,
+                                       training_ops=model.training_ops,
+                                       logdir=logdir,
+                                       write_summaries=train_mode)
 
     if train_mode:
         # Configure the dataset manager with the training and validation data.
-        cfg.configure(
-            'data_prep', prepare_train_and_val_data,
+        cfg['data_prep'].configure(
+            prepare_train_and_val_data,
             dataset_manager=model.dataset_manager,
-            train_generator=cfg.configure('train_data', _load_data, encoding=encoding),
-            val_generator=cfg.configure('val_data', _load_data, encoding=encoding),
+            train_generator=cfg['train_data'].configure(_load_data, encoding=encoding),
+            val_generator=cfg['val_data'].configure(_load_data, encoding=encoding),
             output_types=(tf.int32, tf.int32, tf.int32),
             output_shapes=([None], [None], [None]))
 

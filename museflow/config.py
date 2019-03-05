@@ -38,6 +38,8 @@ class MyModel:
 import functools
 import sys
 
+import yaml
+
 from museflow import logger
 
 
@@ -215,6 +217,10 @@ class Configuration:
         if not self._is_special_name:
             return f'{self.name}.{key}' if isinstance(key, str) else f'{self.name}[{key}]'
         return key
+
+    @classmethod
+    def from_yaml(cls, stream):
+        return cls(yaml.load(stream), '<root>')
 
 
 def configurable(subconfigs=()):

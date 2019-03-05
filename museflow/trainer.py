@@ -36,10 +36,10 @@ class BasicTrainer:
         else:
             self._writer = None
         with tf.name_scope('savers'):
-            self._latest_saver = self._cfg.configure('latest_saver', tf.train.Saver,
-                                                     name='latest', max_to_keep=2)
-            self._best_saver = self._cfg.configure('best_saver', tf.train.Saver,
-                                                   name='best', max_to_keep=1)
+            self._latest_saver = self._cfg['latest_saver'].configure(tf.train.Saver,
+                                                                     name='latest', max_to_keep=2)
+            self._best_saver = self._cfg['best_saver'].configure(tf.train.Saver,
+                                                                 name='best', max_to_keep=1)
 
     @property
     def step(self):

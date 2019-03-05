@@ -15,12 +15,12 @@ def create_train_op(cfg, loss, optimizer=None, variables=None, max_gradient_norm
 
     if optimizer is None:
         opt_args = {}
-        learning_rate = cfg.maybe_configure('lr_decay', global_step=global_step)
+        learning_rate = cfg['lr_decay'].maybe_configure(global_step=global_step)
         if learning_rate is not None:
             opt_args['learning_rate'] = learning_rate
             tf.summary.scalar('learning_rate', learning_rate, family='train')
 
-        optimizer = cfg.configure('optimizer', tf.train.AdamOptimizer, **opt_args)
+        optimizer = cfg['optimizer'].configure(tf.train.AdamOptimizer, **opt_args)
 
     if variables is None:
         variables = tf.trainable_variables()
