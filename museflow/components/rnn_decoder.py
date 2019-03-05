@@ -5,7 +5,7 @@ from museflow.nn.rnn import DropoutWrapper
 from .component import Component, using_scope
 
 
-@configurable(['cell', 'dropout', 'output_projection', 'attention_wrapper'])
+@configurable(['cell', 'dropout', 'token_dropout', 'output_projection', 'attention_wrapper'])
 class RNNDecoder(Component):
 
     def __init__(self, vocabulary, embedding_layer, attention_mechanism=None, max_length=None,
@@ -45,12 +45,21 @@ class RNNDecoder(Component):
     @using_scope
     def decode_train(self, inputs, targets, initial_state=None):
         target_weights = tf.sign(targets, name='target_weights')
+        inputs_shape = tf.shape(inputs)
+        batch_size = inputs_shape[0]
+
         embedded_inputs = self._embeddings.embed(inputs)
 
-        with tf.name_scope('decode_train'):
-            batch_size = tf.shape(inputs)[0]
-            initial_state = self._make_initial_state(batch_size, initial_state)
+        # Apply token dropout if defined in the configuration. This replaces embeddings at random
+        # positions with zeros.
+        dropped_inputs = self._cfg.maybe_configure(
+            'token_dropout', tf.layers.dropout,
+            inputs=embedded_inputs, noise_shape=[batch_size, inputs_shape[1], 1])
+        if dropped_inputs is not None:
+            embedded_inputs = dropped_inputs
 
+        with tf.name_scope('decode_train'):
+            initial_state = self._make_initial_state(batch_size, initial_state)
             sequence_length = tf.reduce_sum(target_weights, axis=1)
             helper = tf.contrib.seq2seq.TrainingHelper(
                 inputs=embedded_inputs,
