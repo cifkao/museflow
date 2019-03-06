@@ -18,21 +18,20 @@ class RNNLayer(Component):
         self._training = training
 
         with self.use_scope():
-            fw_cell = self._cfg.configure('forward_cell', tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
-            fw_cell_dropout = self._cfg.maybe_configure('dropout', DropoutWrapper,
-                                                        cell=fw_cell, training=self._training)
+            fw_cell = self._cfg['forward_cell'].configure(tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
+            fw_cell_dropout = self._cfg['dropout'].maybe_configure(
+                DropoutWrapper, cell=fw_cell, training=self._training)
             self._fw_cell = fw_cell_dropout or fw_cell
 
-            self._bw_cell = self._cfg.maybe_configure('backward_cell', tf.nn.rnn_cell.GRUCell,
-                                                      dtype=tf.float32)
+            self._bw_cell = self._cfg['backward_cell'].maybe_configure(tf.nn.rnn_cell.GRUCell,
+                                                                       dtype=tf.float32)
             if self._bw_cell:
-                bw_cell_dropout = self._cfg.maybe_configure('dropout', DropoutWrapper,
-                                                            cell=self._bw_cell,
-                                                            training=self._training)
+                bw_cell_dropout = self._cfg['dropout'].maybe_configure(
+                    DropoutWrapper, cell=self._bw_cell, training=self._training)
                 self._bw_cell = bw_cell_dropout or self._bw_cell
 
-            self._final_dropout = self._cfg.maybe_configure('final_state_dropout',
-                                                            tf.layers.Dropout)
+            self._final_dropout = self._cfg['final_state_dropout'].maybe_configure(
+                tf.layers.Dropout)
 
     @using_scope
     def apply(self, inputs):

@@ -19,27 +19,29 @@ class RNNDecoder(Component):
         self._training = training
 
         with self.use_scope():
-            cell = self._cfg.configure('cell', tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
+            cell = self._cfg['cell'].configure(tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
             if cell_wrap_fn:
                 cell = cell_wrap_fn(cell)
             self._dtype = cell.dtype
             self.initial_state_size = cell.state_size
 
-            cell_dropout = self._cfg.maybe_configure('dropout', DropoutWrapper,
-                                                     cell=cell, training=self._training)
+            cell_dropout = self._cfg['dropout'].maybe_configure(DropoutWrapper,
+                                                                cell=cell,
+                                                                training=self._training)
             self.cell = cell_dropout or cell
 
             if self._attention_mechanism:
-                self.cell = self._cfg.configure('attention_wrapper',
-                                                tf.contrib.seq2seq.AttentionWrapper,
-                                                cell=self.cell,
-                                                attention_mechanism=self._attention_mechanism,
-                                                output_attention=False)
+                self.cell = self._cfg['attention_wrapper'].configure(
+                    tf.contrib.seq2seq.AttentionWrapper,
+                    cell=self.cell,
+                    attention_mechanism=self._attention_mechanism,
+                    output_attention=False)
             self.cell.build(tf.TensorShape([None, self._embeddings.output_size]))
 
-            self._output_projection = self._cfg.configure('output_projection', tf.layers.Dense,
-                                                          units=len(vocabulary), use_bias=False,
-                                                          name='output_projection')
+            self._output_projection = self._cfg['output_projection'].configure(
+                tf.layers.Dense,
+                units=len(vocabulary), use_bias=False,
+                name='output_projection')
             self._output_projection.build([None, self.cell.output_size])
         self._built = True
 
@@ -53,8 +55,8 @@ class RNNDecoder(Component):
 
         # Apply token dropout if defined in the configuration. This replaces embeddings at random
         # positions with zeros.
-        dropped_inputs = self._cfg.maybe_configure(
-            'token_dropout', tf.layers.dropout,
+        dropped_inputs = self._cfg['token_dropout'].maybe_configure(
+            tf.layers.dropout,
             inputs=embedded_inputs, noise_shape=[batch_size, inputs_shape[1], 1],
             training=self._training)
         if dropped_inputs is not None:
