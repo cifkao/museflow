@@ -5,18 +5,21 @@ jobs:
   include:
     - name: 'Pylint'
       install:
+        - pip install tensorflow==1.10
         - pip install .
         - pip install pylint pylint-quotes
       script:
         - pylint museflow
     - name: 'Unit tests'
       install:
+        - pip install tensorflow==1.10
         - pip install .
         - pip install pytest
       script:
         - PYTHONWARNINGS=ignore::DeprecationWarning pytest museflow
     - name: 'Model tests'
       install:
+        - pip install tensorflow==1.10
         - pip install .
       script:
         - cd tests; ./test_models.sh
