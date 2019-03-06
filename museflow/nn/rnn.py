@@ -49,6 +49,9 @@ class InputWrapper(tf.nn.rnn_cell.RNNCell):
     def output_size(self):
         return self._cell.output_size
 
+    def compute_output_shape(self, input_shape):
+        return self._cell.compute_output_shape(input_shape)
+
     def zero_state(self, batch_size, dtype):
         with tf.name_scope(type(self).__name__ + 'ZeroState', values=[batch_size]):
             return self._cell.zero_state(batch_size, dtype)
