@@ -6,33 +6,51 @@ configuration dictionary, e.g.:
 ```
 config_dict = {
     'encoder': {
-        'cell': {
+        'cell1': {
             'num_units': 500
-        }
+        },
+        'name': 'encoder'
     },
-    'decoder': {
-        'size': 1000
-    }
     'say_hello': True,
 }
-configure(MyModel, config_dict, logdir='/tmp/logdir')
+config = Configuration(config_dict)
+config.configure(MyModel, logdir='/tmp/logdir')
 ```
 
 To make our model class configurable in the first place, we need to decorate it with
-`@configurable`. When the decorated class is instantiated, a magic `_cfg` attribute is attached to
-it automatically. This `_cfg` is an instance of the `Configuration` class and can be used to
-create other configurable objects inside the model. As an example:
+`@configurable`. When the decorated model class is instantiated, a magic `_cfg` attribute is
+attached to the instance automatically. This `_cfg` is the `Configuration` object that was used to
+configure the model, and can be used to configure other objects inside the model.
+As an example:
 
 ```
-@configurable(['encoder', 'decoder'])
+@configurable(['encoder'])
 class MyModel:
 
-    def __init__(self, say_hello=False):
+    def __init__(self, logdir, say_hello=False):
         if say_hello:
             logger.info('Hello world!')
-        encoder = self._cfg.configure('encoder', MyEncoder)
-        decoder = self._cfg.configure('decoder', MyDecoder)
+        encoder = self._cfg['encoder'].configure(MyEncoder)
+
+@configurable(['cell1', 'cell2'])
+class MyEncoder:
+
+    def __init__(self, name='my_encoder'):
+        cell1 = self._cfg['cell1'].configure(LSTMCell, num_units=50)  # overriden with num_units=500
+        cell2 = self._cfg['cell2'].configure(LSTMCell, num_units=100)
+
 ```
+
+In this example, `MyModel` will be called with the parameters `logdir='/tmp/logdir'` and
+`say_hello=True`. Inside the model, we then instantiate `MyEncoder(name='encoder')`, which in turn
+creates two instances of `LSTMCell` with `num_units=500` and `num_units=100`, respectively.
+
+Note that:
+  - Keyword arguments passed to `configure` can be overridden in the configuration dict.
+  - Inside `MyEncoder`, we can call `self._cfg['cell2'].configure` even though the key `'cell2'` is
+    not defined in the configuration.
+  - We need to pass `['encoder']` to the decorator for `MyModel`, otherwise the corresponding value
+    from the configuration dict would get passed as a keyword argument.
 """
 
 import functools
@@ -56,58 +74,8 @@ class Configuration:
 
         self._is_special_name = name.startswith('<')
 
-    def __repr__(self):
-        return 'Configuration({}{})'.format(
-            repr(self._wrapped) if self._wrapped is not _MISSING_VALUE else '<missing>',
-            f', name={self._name_repr}' if not self._is_special_name else '')
-
-    @property
-    def _name_repr(self):
-        return repr(self.name) if not self._is_special_name else self.name
-
-    def __getitem__(self, key):
-        if key not in self._child_configs:
-            self._child_configs[key] = Configuration(self.get(key, _MISSING_VALUE),
-                                                     name=self._get_key_name(key))
-        return self._child_configs[key]
-
-    def __setitem__(self, key, value):
-        try:
-            self._wrapped[key] = value
-        except TypeError as e:
-            raise TypeError(f'{self.name}: {e}') from None
-        if key in self._child_configs:
-            setattr(self._child_configs[key], '_wrapped', value)
-
-    def __delitem__(self, key):
-        try:
-            del self._wrapped[key]
-        except (KeyError, IndexError, TypeError) as e:
-            raise type(e)(f'{self.name}: {e}') from None
-
-    def __iter__(self):
-        try:
-            return iter(self._wrapped)
-        except TypeError as e:
-            raise TypeError(f'{self.name}: {e}') from None
-
-    def __len__(self):
-        try:
-            return len(self._wrapped)
-        except TypeError as e:
-            raise TypeError(f'{self.name}: {e}') from None
-
-    def __contains__(self, key):
-        try:
-            return key in self._wrapped
-        except TypeError as e:
-            raise TypeError(f'{self.name}: {e}') from None
-
-    def __bool__(self):
-        return self._wrapped is not _MISSING_VALUE and bool(self._wrapped)
-
     def get(self, key=None, default=_NO_DEFAULT):
-        """Return a value from this configuration object.
+        """Return an item from this configuration object.
 
         Returns:
             If `key` is given, the corresponding item from the wrapped object. Otherwise, the entire
@@ -185,7 +153,7 @@ class Configuration:
         if type(config_val) is not dict:
             if constructor or kwargs:
                 raise ConfigError(f'Error while configuring {self._name_repr}: dict expected, '
-                                  f'got {type(config_value)}')
+                                  f'got {type(config_val)}')
             return config_val
         config_dict = dict(config_val)  # Make a copy of the dict
 
@@ -218,6 +186,61 @@ class Configuration:
                 type(e).__name__, self._name_repr, constructor, e
             )).with_traceback(sys.exc_info()[2]) from None
 
+    def __getitem__(self, key):
+        """Return a `Configuration` object corresponding to the given key.
+
+        If the key is missing in the wrapped object, a `Configuration` object with a special
+        `<missing>` value is returned.
+        """
+        if key not in self._child_configs:
+            self._child_configs[key] = Configuration(self.get(key, _MISSING_VALUE),
+                                                     name=self._get_key_name(key))
+        return self._child_configs[key]
+
+    def __setitem__(self, key, value):
+        try:
+            self._wrapped[key] = value
+        except TypeError as e:
+            raise TypeError(f'{self.name}: {e}') from None
+        if key in self._child_configs:
+            setattr(self._child_configs[key], '_wrapped', value)
+
+    def __delitem__(self, key):
+        try:
+            del self._wrapped[key]
+        except (KeyError, IndexError, TypeError) as e:
+            raise type(e)(f'{self.name}: {e}') from None
+
+    def __iter__(self):
+        try:
+            return iter(self._wrapped)
+        except TypeError as e:
+            raise TypeError(f'{self.name}: {e}') from None
+
+    def __len__(self):
+        try:
+            return len(self._wrapped)
+        except TypeError as e:
+            raise TypeError(f'{self.name}: {e}') from None
+
+    def __contains__(self, key):
+        try:
+            return key in self._wrapped
+        except TypeError as e:
+            raise TypeError(f'{self.name}: {e}') from None
+
+    def __bool__(self):
+        return self._wrapped is not _MISSING_VALUE and bool(self._wrapped)
+
+    def __repr__(self):
+        return 'Configuration({}{})'.format(
+            repr(self._wrapped) if self._wrapped is not _MISSING_VALUE else '<missing>',
+            f', name={self._name_repr}' if not self._is_special_name else '')
+
+    @property
+    def _name_repr(self):
+        return repr(self.name) if not self._is_special_name else self.name
+
     def _get_key_name(self, key):
         if not self._is_special_name:
             return f'{self.name}.{key}' if isinstance(key, str) else f'{self.name}[{key}]'
@@ -228,28 +251,28 @@ class Configuration:
         return cls(yaml.load(stream), '<root>')
 
 
-def configurable(subconfigs=()):
+def configurable(subconfigs=(), pass_kwargs=True):
     """Return a decorator that makes a function or a class configurable.
 
-    The configurable function/class can be called/instantiated normally, or via `configure` or
+    The configurable function/class can be called/instantiated normally, or via
     `Configuration.configure`.
 
     A configurable function should have an extra first argument `cfg`, which will be automatically
-    populated with an instance of `Configuration` when the function is called. It is then possible
-    to call `cfg.configure` or `cfg.maybe_configure` in the body of the function.
-
-    A configurable class can access its `Configuration` object via `self._cfg` (e.g.
-    `self._cfg.configure`).
+    populated with an instance of `Configuration` when the function is called. A configurable class
+    can access its `Configuration` object via `self._cfg`.
 
     Args:
-        subconfigs: A list of names of objects that can be configured via the configuration
-            mechanism.
+        subconfigs: A list of configuration items that are to be used via the configuration
+            mechanism, and therefore should not be passed as keyword arguments to the configurable.
+        pass_kwargs: If `True` (default), all configuration items not specified in `child_configs`
+            will be passed as keyword arguments when calling the configurable.
     Returns:
         The decorator.
     """
     def decorator(x):
         parent_subconfigs = getattr(x, '__museflow_subconfigs', ())
         setattr(x, '__museflow_subconfigs', (*parent_subconfigs, *subconfigs))
+        setattr(x, '__museflow_pass_kwargs', pass_kwargs)
 
         # Wrap x or its __init__ so that an empty Configuration gets created by default.
 
@@ -280,10 +303,13 @@ def configurable(subconfigs=()):
 
 def _construct_configurable(x, kwargs, config_dict, cfg):
     subconfigs = getattr(x, '__museflow_subconfigs')
+    pass_kwargs = getattr(x, '__museflow_pass_kwargs')
 
-    # Copy keys from config_dict to kwargs, except for those that are in the subconfigs list.
-    kwargs = dict(kwargs)
-    kwargs.update({k: v for k, v in config_dict.items() if k not in subconfigs})
+    if pass_kwargs:
+        # Copy keys from config_dict to kwargs, except for those that are in the subconfigs list.
+        kwargs = dict(kwargs)
+        kwargs.update({k: v for k, v in config_dict.items() if k not in subconfigs})
+
     _log_call(x, kwargs=kwargs)
 
     if isinstance(x, type):
