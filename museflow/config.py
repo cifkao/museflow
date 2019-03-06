@@ -155,12 +155,17 @@ class Configuration:
             raise TypeError(f'Expected at most 1 positional argument, got {len(args)}')
         constructor = args[0] if args else None
 
-        config = self.get(default={})  # May raise TypeError
-        if config is None:
+        config_val = self.get(default={})  # May raise TypeError
+        if config_val is None:
             return None
-        if type(config) is list:
-            return [self._configure(config_item, constructor, kwargs) for config_item in config]
-        return self._configure(config, constructor, kwargs)
+
+        # If the value is a list, we treat each item separately.
+        # We create a Configuration object for each item by accessing self[i].
+        if type(config_val) is list:
+            return [self._configure(self[i], config_item, constructor, kwargs)
+                    for i, config_item in enumerate(config_val)]
+
+        return self._configure(self, config_val, constructor, kwargs)
 
     def maybe_configure(self, *args, **kwargs):
         """Configure an object only if a configuration is present.
@@ -176,13 +181,13 @@ class Configuration:
 
         return self.configure(constructor, **kwargs)
 
-    def _configure(self, config, constructor, kwargs):
-        if type(config) is not dict:
+    def _configure(self, config, config_val, constructor, kwargs):
+        if type(config_val) is not dict:
             if constructor or kwargs:
                 raise ConfigError(f'Error while configuring {self._name_repr}: dict expected, '
-                                  f'got {type(config)}')
-            return config
-        config_dict = dict(config)  # Make a copy of the dict
+                                  f'got {type(config_value)}')
+            return config_val
+        config_dict = dict(config_val)  # Make a copy of the dict
 
         try:
             if not constructor or 'class' in config_dict:
@@ -203,7 +208,7 @@ class Configuration:
         # the constructor.
         try:
             if hasattr(constructor, '__museflow_subconfigs'):
-                return _construct_configurable(constructor, kwargs, config_dict, self)
+                return _construct_configurable(constructor, kwargs, config_dict, cfg=config)
 
             kwargs = {**kwargs, **config_dict}
             _log_call(constructor, kwargs=kwargs)
