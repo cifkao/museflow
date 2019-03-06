@@ -16,6 +16,7 @@ def setup_argparser(parser):
     parser.add_argument('-p', '--program', type=int, default=None)
     parser.add_argument('--stretch', type=str, default=None)
     parser.add_argument('--tempo', type=float, default=None)
+    parser.add_argument('--time-signature', type=str, default=None)
 
 
 def main(args):
@@ -79,10 +80,16 @@ def main(args):
         del tracks[-1]
 
         midi = pretty_midi.PrettyMIDI(initial_tempo=tempo, resolution=480)
+
+        if args.time_signature:
+            numer, denom = args.time_signature.split('/')
+            midi.time_signature_changes[:] = [pretty_midi.TimeSignature(int(numer), int(denom), 0.)]
+
         for track in tracks:
             instrument = pretty_midi.Instrument(name=args.instrument,
                                                 program=args.program,
                                                 is_drum=args.drums)
             instrument.notes[:] = track
             midi.instruments.append(instrument)
+
         midi.write(os.path.join(args.output_dir, fname))
