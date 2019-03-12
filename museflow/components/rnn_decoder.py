@@ -69,8 +69,8 @@ class RNNDecoder(Component):
                 inputs=embedded_inputs,
                 sequence_length=sequence_length,
                 time_major=False)
-            output = self._dynamic_decode(helper=helper,
-                                          initial_state=initial_state)
+            output, _ = self._dynamic_decode(helper=helper,
+                                             initial_state=initial_state)
             logits = output.rnn_output
 
         with tf.name_scope('loss'):
@@ -130,9 +130,9 @@ class RNNDecoder(Component):
             helper=helper,
             initial_state=initial_state,
             output_layer=self._output_projection)
-        output, _, _ = tf.contrib.seq2seq.dynamic_decode(
+        output, state, _ = tf.contrib.seq2seq.dynamic_decode(
             decoder=decoder,
             output_time_major=False,
             impute_finished=True,
             maximum_iterations=max_length)
-        return output
+        return output, state
