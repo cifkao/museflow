@@ -195,14 +195,31 @@ class DatasetManager:
 
 def prepare_train_and_val_data(train_generator, val_generator, output_types, output_shapes,
                                train_batch_size, val_batch_size, shuffle_buffer_size=100000,
-                               num_epochs=None, dataset_manager=None):
-    """Prepare a DatasetManager with training and validation data."""
+                               num_epochs=None, num_train_examples=None, dataset_manager=None):
+    """Prepare a DatasetManager with training and validation data.
+
+    Args:
+        train_generator: A generator yielding the training examples.
+        val_generator: A generator yielding the validation examples.
+        output_types: The type(s) of the elements of the dataset.
+        output_shapes: The padded shape(s) of the elements of the dataset.
+        train_batch_size: The batch size of the training dataset.
+        val_batch_size: The batch size of the validation dataset.
+        shuffle_buffer_size: The size of the buffer used for sampling elements from the training
+            dataset.
+        num_epochs: The number of training epochs. If `None`, the training dataset will loop
+            indefinitely.
+        num_train_examples: If given, the number of examples per training epoch will be limited
+            to this number (after shuffling).
+        dataset_manager: The `DatasetManager` to add the datasets to.
+    """
     with tf.name_scope('train'):
         train_dataset = tf.data.Dataset.from_generator(train_generator, output_types)
-        train_dataset = train_dataset.shuffle(
-            shuffle_buffer_size, reshuffle_each_iteration=True).repeat(num_epochs)
-        train_dataset = train_dataset.padded_batch(
-            train_batch_size, output_shapes)
+        train_dataset = train_dataset.shuffle(shuffle_buffer_size, reshuffle_each_iteration=True)
+        if num_train_examples:
+            train_dataset = train_dataset.take(num_train_examples)
+        train_dataset = train_dataset.repeat(num_epochs)
+        train_dataset = train_dataset.padded_batch(train_batch_size, output_shapes)
     if dataset_manager:
         dataset_manager.add_dataset('train', train_dataset, one_shot=True)
 
