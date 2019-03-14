@@ -181,12 +181,16 @@ class DatasetManager:
 
         return results
 
-    def get_batch(self):
+    def get_next(self):
         """Return a nested struture of tensors representing the next element of a dataset."""
         if self._global_iterator is None:
             self._global_iterator = tf.data.Iterator.from_string_handle(
                 self._handle_placeholder, self._output_types, self._output_shapes)
         return self._global_iterator.get_next()
+
+    def get_batch(self):
+        """Return a nested struture of tensors representing the next element of a dataset."""
+        return self.get_next()
 
 
 def prepare_train_and_val_data(train_generator, val_generator, output_types, output_shapes,
