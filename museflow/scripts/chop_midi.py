@@ -18,7 +18,7 @@ _MIN_DURATION = 1e-5  # Most likely below MIDI resolution
 
 def setup_argparser(parser):
     parser.set_defaults(func=main)
-    parser.add_argument('input_files', type=argparse.FileType('rb'), nargs='+', metavar='FILE')
+    parser.add_argument('input_files', nargs='+', metavar='FILE')
     parser.add_argument('output_file', type=argparse.FileType('wb'), metavar='OUTPUTFILE')
 
     parser.add_argument('-i', '--instrument-re', type=str, default='.*')
@@ -45,7 +45,10 @@ def chop_midi(files, bars_per_segment, instrument_re=None, programs=None, drums=
     bars_per_segment = list(bars_per_segment)
 
     for file in files:
-        file_id = file.name
+        if isinstance(file, str):
+            file_id = file
+        else:
+            file_id = file.name
         midi = pretty_midi.PrettyMIDI(file)
 
         if force_tempo is not None:
