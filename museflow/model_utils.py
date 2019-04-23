@@ -210,14 +210,14 @@ def prepare_train_and_val_data(train_generator, val_generator, output_types, out
         num_epochs: The number of training epochs. If `None`, the training dataset will loop
             indefinitely.
         num_train_examples: If given, the number of examples per training epoch will be limited
-            to this number (after shuffling).
+            to this number (before shuffling).
         dataset_manager: The `DatasetManager` to add the datasets to.
     """
     with tf.name_scope('train'):
         train_dataset = tf.data.Dataset.from_generator(train_generator, output_types)
-        train_dataset = train_dataset.shuffle(shuffle_buffer_size, reshuffle_each_iteration=True)
         if num_train_examples:
             train_dataset = train_dataset.take(num_train_examples)
+        train_dataset = train_dataset.shuffle(shuffle_buffer_size, reshuffle_each_iteration=True)
         train_dataset = train_dataset.repeat(num_epochs)
         train_dataset = train_dataset.padded_batch(train_batch_size, output_shapes)
     if dataset_manager:
