@@ -8,8 +8,8 @@ from .component import Component, using_scope
 @configurable(['cell', 'dropout', 'token_dropout', 'output_projection', 'attention_wrapper'])
 class RNNDecoder(Component):
 
-    def __init__(self, vocabulary, embedding_layer, attention_mechanism=None, max_length=None,
-                 cell_wrap_fn=None, training=None, name='decoder'):
+    def __init__(self, vocabulary, embedding_layer, attention_mechanism=None, pre_attention=False,
+                 max_length=None, cell_wrap_fn=None, training=None, name='decoder'):
         Component.__init__(self, name=name)
 
         self._vocabulary = vocabulary
@@ -32,10 +32,12 @@ class RNNDecoder(Component):
 
             if self._attention_mechanism:
                 self.cell = self._cfg['attention_wrapper'].configure(
-                    tf.contrib.seq2seq.AttentionWrapper,
+                    _AttentionWrapper,
                     cell=self.cell,
                     attention_mechanism=self._attention_mechanism,
-                    output_attention=False)
+                    output_attention=False,
+                    pre_attention=pre_attention,
+                    input_size=self._embeddings.output_size)
             self.cell.build(tf.TensorShape([None, self._embeddings.output_size]))
 
             self._output_projection = self._cfg['output_projection'].configure(
@@ -136,3 +138,30 @@ class RNNDecoder(Component):
             impute_finished=True,
             maximum_iterations=max_length)
         return output, state
+
+
+class _AttentionWrapper(tf.contrib.seq2seq.AttentionWrapper):
+    """A modified `AttentionWrapper`.
+
+    This wrapper adds an attention step before starting the decoding (if enabled by the
+    `pre_attention` argument). This is necessary if we don't pass an initial state.
+    """
+
+    def __init__(self, *args, pre_attention=False, input_size=None, **kwargs):
+        self._pre_attention = pre_attention
+        self._input_size = input_size
+        super().__init__(*args, **kwargs)
+
+    def zero_state(self, batch_size, dtype):
+        zero_state = super().zero_state(batch_size, dtype)
+        if not self._pre_attention:
+            return zero_state
+
+        # Do one step (to get the attention running), but revert the RNN cell
+        # back to the zero state.
+        inputs = tf.zeros([batch_size, self._input_size], dtype)
+        _, new_state = self.__call__(inputs, zero_state)
+        return new_state.clone(cell_state=zero_state.cell_state)
+
+
+_AttentionWrapper.__name__ = 'AttentionWrapper'  # needed for nice TensorFlow variable scope name
