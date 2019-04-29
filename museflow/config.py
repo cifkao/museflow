@@ -247,8 +247,8 @@ class Configuration:
         return key
 
     @classmethod
-    def from_yaml(cls, stream):
-        return cls(yaml.load(stream), '<root>')
+    def from_yaml(cls, stream, loader=yaml.UnsafeLoader):
+        return cls(yaml.load(stream, Loader=loader), '<root>')
 
 
 def configurable(subconfigs=(), pass_kwargs=True):
