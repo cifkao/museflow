@@ -212,6 +212,9 @@ def prepare_train_and_val_data(train_generator, val_generator, output_types, out
         num_train_examples: If given, the number of examples per training epoch will be limited
             to this number (before shuffling).
         dataset_manager: The `DatasetManager` to add the datasets to.
+
+    Return:
+        A tuple `(train_dataset, val_dataset)`.
     """
     with tf.name_scope('train'):
         train_dataset = tf.data.Dataset.from_generator(train_generator, output_types)

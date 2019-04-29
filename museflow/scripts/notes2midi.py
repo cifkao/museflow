@@ -17,8 +17,8 @@ def setup_argparser(parser):
     parser.add_argument('-p', '--program', type=int)
     parser.add_argument('--stretch', type=str)
     parser.add_argument('--tempo', type=float)
-    parser.add_argument('--time-signature', type=lambda s: tuple(int (x) for x in s.split('/')),
-                        default=(4,4))
+    parser.add_argument('--time-signature', type=lambda s: tuple(int(x) for x in s.split('/')),
+                        default=(4, 4))
     parser.add_argument('--resolution', type=int, default=480)
     parser.add_argument('--range', type=lambda r: [None if x == '' else int(x)
                                                    for x in r.split(':')])
