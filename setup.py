@@ -16,6 +16,6 @@ setuptools.setup(
         'numpy',
         'pretty_midi',
         'pyyaml',
-        'tensorflow',
+        'tensorflow-gpu',
     ],
 )
