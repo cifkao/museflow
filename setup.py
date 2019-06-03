@@ -10,6 +10,7 @@ setuptools.setup(
             'museflow = museflow.main:main'
         ]
     },
+    python_requires='>=3.6',
     install_requires=[
         'cached_property',
         'coloredlogs',
