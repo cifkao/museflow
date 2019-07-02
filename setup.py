@@ -1,4 +1,11 @@
 import setuptools
+import sys
+
+
+gpu = True
+if '--nogpu' in sys.argv:
+  gpu = False
+  sys.argv.remove('--nogpu')
 
 setuptools.setup(
     name="museflow",
@@ -17,6 +24,6 @@ setuptools.setup(
         'numpy',
         'pretty_midi',
         'pyyaml',
-        'tensorflow-gpu',
+        'tensorflow-gpu<2.0' if gpu else 'tensorflow<2.0',
     ],
 )
