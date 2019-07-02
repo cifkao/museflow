@@ -3,9 +3,9 @@
 import random
 import warnings
 
+import pytest
 from numpy.testing import assert_equal
 from pretty_midi import Note
-import pytest
 
 from museflow.encodings import PerformanceEncoding
 
