@@ -17,3 +17,7 @@ To install without GPU support:
 ```sh
 pip install '.[nogpu]'
 ```
+
+## Copyright notice
+Copyright 2019 Ondřej Cífka of Télécom Paris, Institut Polytechnique de Paris.  
+All rights reserved.
