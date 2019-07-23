@@ -80,7 +80,6 @@ class BaseTrainer(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def _get_saver(self, checkpoint_name):
         """Returns the saver corresponding to the given checkpoint name."""
-        pass
 
     class TrainingOps:
         """
