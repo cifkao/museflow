@@ -22,6 +22,7 @@ class BaseTrainer(metaclass=abc.ABCMeta):
         self._ops = training_ops or BasicTrainer.TrainingOps(loss=None, train_op=())
 
         self._global_step_tensor = tf.train.get_or_create_global_step()
+        self._global_step_initialized = tf.is_variable_initialized(self._global_step_tensor)
         self._step = 0
 
         if self._ops.training_placeholder is None:
@@ -68,7 +69,8 @@ class BaseTrainer(metaclass=abc.ABCMeta):
                                                          checkpoint_name + '_checkpoint')
         self._get_saver(checkpoint_name).restore(self.session, checkpoint_file)
         logger.info('Variables restored from {}'.format(checkpoint_file))
-        self._step = self.session.run(self._global_step_tensor)
+        if self.session.run(self._global_step_initialized):
+            self._step = self.session.run(self._global_step_tensor)
 
     def write_scalar_summary(self, name, value, step=None):
         summary = tf.Summary(value=[
