@@ -221,10 +221,12 @@ def training_validation_loop(training_step_fn, init_fn=None, validation_fn=None,
                                   best_val_step=-1)
 
     def validate():
+        if validation_fn is None:
+            return
         state.last_val_loss = validation_fn()
         if state.last_val_loss < state.best_val_loss:
             state.best_val_loss, state.best_val_step = state.last_val_loss, state.step
-            if best_val_loss_fn:
+            if best_val_loss_fn is not None:
                 best_val_loss_fn(state.best_val_loss)
 
     while True:
