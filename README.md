@@ -18,6 +18,8 @@ To install without GPU support:
 pip install '.[nogpu]'
 ```
 
-## Copyright notice
+## License
+This software is distributed under the [BSD 3-Clause License](LICENSE).
+
 Copyright 2019 Ondřej Cífka of Télécom Paris, Institut Polytechnique de Paris.  
 All rights reserved.
