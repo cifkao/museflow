@@ -8,7 +8,8 @@ from .component import Component, using_scope
 @configurable(['forward_cell', 'backward_cell', 'dropout', 'final_state_dropout'])
 class RNNLayer(Component):
 
-    def __init__(self, training=None, output_states='all', name='rnn'):
+    def __init__(self, training=None, forward_cell=None, backward_cell=None,
+                 output_states='all', name='rnn'):
         Component.__init__(self, name=name)
 
         if output_states not in ['all', 'output', 'final']:
@@ -18,13 +19,20 @@ class RNNLayer(Component):
         self._training = training
 
         with self.use_scope():
-            fw_cell = self._cfg['forward_cell'].configure(tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
+            if forward_cell:
+                fw_cell = forward_cell
+            else:
+                fw_cell = self._cfg['forward_cell'].configure(tf.nn.rnn_cell.GRUCell,
+                                                              dtype=tf.float32)
             fw_cell_dropout = self._cfg['dropout'].maybe_configure(
                 DropoutWrapper, cell=fw_cell, training=self._training)
             self._fw_cell = fw_cell_dropout or fw_cell
 
-            self._bw_cell = self._cfg['backward_cell'].maybe_configure(tf.nn.rnn_cell.GRUCell,
-                                                                       dtype=tf.float32)
+            if backward_cell:
+                self._bw_cell = backward_cell
+            else:
+                self._bw_cell = self._cfg['backward_cell'].maybe_configure(tf.nn.rnn_cell.GRUCell,
+                                                                           dtype=tf.float32)
             if self._bw_cell:
                 bw_cell_dropout = self._cfg['dropout'].maybe_configure(
                     DropoutWrapper, cell=self._bw_cell, training=self._training)
