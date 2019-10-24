@@ -167,7 +167,7 @@ class BasicTrainer(BaseTrainer):
     def validate(self, write_summaries=False):
         val_losses = self._dataset_manager.run_over_dataset(self.session, self._ops.loss,
                                                             self._val_dataset_name)
-        mean_loss = np.mean(val_losses)
+        mean_loss = np.mean(val_losses) if val_losses else np.nan
 
         if write_summaries:
             self.write_scalar_summary('{}/loss'.format(self._val_dataset_name), mean_loss)
