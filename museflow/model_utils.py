@@ -88,6 +88,9 @@ class DatasetManager:
                 datasets); if `False` (default), an initializable iterator will be used
                 (requiring to call `initialize_dataset`).
         """
+        if name in self.datasets:
+            self.remove_dataset(name)
+
         self.datasets[name] = dataset
         if one_shot:
             self._iterators[name] = dataset.make_one_shot_iterator()
@@ -164,6 +167,9 @@ class DatasetManager:
             except tf.errors.OutOfRangeError:
                 break
 
+        if not results:
+            return None
+
         # Flatten the structure of each batch, put the corresponding elements together and restore
         # the structure.
         structure = results[0]
@@ -195,7 +201,8 @@ class DatasetManager:
 
 def prepare_train_and_val_data(train_generator, val_generator, output_types, output_shapes,
                                train_batch_size, val_batch_size, shuffle_buffer_size=100000,
-                               num_epochs=None, num_train_examples=None, dataset_manager=None):
+                               preprocess_fn=None, num_epochs=None, num_train_examples=None,
+                               dataset_manager=None):
     """Prepare a DatasetManager with training and validation data.
 
     Args:
@@ -207,6 +214,7 @@ def prepare_train_and_val_data(train_generator, val_generator, output_types, out
         val_batch_size: The batch size of the validation dataset.
         shuffle_buffer_size: The size of the buffer used for sampling elements from the training
             dataset.
+        preprocess_fn: The pre-processing function to apply to the data.
         num_epochs: The number of training epochs. If `None`, the training dataset will loop
             indefinitely.
         num_train_examples: If given, the number of examples per training epoch will be limited
@@ -220,24 +228,32 @@ def prepare_train_and_val_data(train_generator, val_generator, output_types, out
         train_dataset = tf.data.Dataset.from_generator(train_generator, output_types)
         if num_train_examples:
             train_dataset = train_dataset.take(num_train_examples)
-        train_dataset = train_dataset.shuffle(shuffle_buffer_size, reshuffle_each_iteration=True)
+        if shuffle_buffer_size:
+            train_dataset = train_dataset.shuffle(shuffle_buffer_size,
+                                                  reshuffle_each_iteration=True)
+        if preprocess_fn:
+            train_dataset = train_dataset.map(preprocess_fn)
         train_dataset = train_dataset.repeat(num_epochs)
         train_dataset = train_dataset.padded_batch(train_batch_size, output_shapes)
     if dataset_manager:
         dataset_manager.add_dataset('train', train_dataset, one_shot=True)
 
     val_dataset = make_simple_dataset(
-        val_generator, output_types, output_shapes, val_batch_size, 'val')
+        val_generator, output_types, output_shapes, val_batch_size, 'val',
+        preprocess_fn=preprocess_fn)
     if dataset_manager:
         dataset_manager.add_dataset('val', val_dataset)
 
     return train_dataset, val_dataset
 
 
-def make_simple_dataset(generator, output_types, output_shapes, batch_size=None, name='dataset'):
+def make_simple_dataset(generator, output_types, output_shapes, batch_size=None, name='dataset',
+                        preprocess_fn=None):
     """Create a simple validation or test dataset."""
     with tf.name_scope(name):
         dataset = tf.data.Dataset.from_generator(generator, output_types)
+        if preprocess_fn:
+            dataset = dataset.map(preprocess_fn)
         if batch_size is not None:
             dataset = dataset.padded_batch(batch_size, output_shapes)
         return dataset
