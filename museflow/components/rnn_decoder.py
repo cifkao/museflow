@@ -8,8 +8,17 @@ from .component import Component, using_scope
 @configurable(['cell', 'dropout', 'token_dropout', 'output_projection', 'attention_wrapper'])
 class RNNDecoder(Component):
 
-    def __init__(self, vocabulary, embedding_layer, attention_mechanism=None, pre_attention=False,
-                 max_length=None, cell_wrap_fn=None, training=None, name='decoder'):
+    def __init__(self,
+                 vocabulary,
+                 embedding_layer,
+                 attention_mechanism=None,
+                 pre_attention=False,
+                 max_length=None,
+                 cell=None,
+                 cell_wrap_fn=None,
+                 output_projection=None,
+                 training=None,
+                 name='decoder'):
         Component.__init__(self, name=name)
 
         self._vocabulary = vocabulary
@@ -19,7 +28,8 @@ class RNNDecoder(Component):
         self._training = training
 
         with self.use_scope():
-            cell = self._cfg['cell'].configure(tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
+            if not cell:
+                cell = self._cfg['cell'].configure(tf.nn.rnn_cell.GRUCell, dtype=tf.float32)
             if cell_wrap_fn:
                 cell = cell_wrap_fn(cell)
             self._dtype = cell.dtype
@@ -27,6 +37,7 @@ class RNNDecoder(Component):
 
             cell_dropout = self._cfg['dropout'].maybe_configure(DropoutWrapper,
                                                                 cell=cell,
+                                                                dtype=tf.float32,
                                                                 training=self._training)
             self.cell = cell_dropout or cell
 
@@ -40,10 +51,13 @@ class RNNDecoder(Component):
                     input_size=self._embeddings.output_size)
             self.cell.build(tf.TensorShape([None, self._embeddings.output_size]))
 
-            self._output_projection = self._cfg['output_projection'].configure(
-                tf.layers.Dense,
-                units=len(vocabulary), use_bias=False,
-                name='output_projection')
+            if output_projection:
+                self._output_projection = output_projection
+            else:
+                self._output_projection = self._cfg['output_projection'].configure(
+                    tf.layers.Dense,
+                    units=len(vocabulary), use_bias=False,
+                    name='output_projection')
             self._output_projection.build([None, self.cell.output_size])
         self._built = True
 
