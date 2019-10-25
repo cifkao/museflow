@@ -2,6 +2,7 @@ from collections import defaultdict
 import heapq
 import warnings
 
+from magenta.protobuf import music_pb2
 import numpy as np
 import pretty_midi
 
@@ -44,6 +45,11 @@ class PerformanceEncoding:
         self.vocabulary = Vocabulary(wordlist)
 
     def encode(self, notes, as_ids=True, add_start=False, add_end=False):
+        if isinstance(notes, music_pb2.NoteSequence):
+            notes = [pretty_midi.Note(start=n.start_time, end=n.end_time,
+                                      pitch=n.pitch, velocity=n.velocity)
+                     for n in notes.notes]
+
         queue = _NoteEventQueue(notes, quantization_step=self._time_unit)
         events = [self.vocabulary.start_token] if add_start else []
 
@@ -222,7 +228,7 @@ def _compress_note_offs(tokens):
 
         new_tokens.append(token)
 
-    assert num_notes_on == 0, 'Invalid sequence: found NoteOn with no matchin NoteOff'
+    assert num_notes_on == 0, 'Invalid sequence: found NoteOn with no matching NoteOff'
     if note_offs:
         new_tokens.append(('NoteOff', '*'))
 

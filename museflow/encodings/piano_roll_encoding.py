@@ -1,3 +1,4 @@
+from magenta.protobuf import music_pb2
 import numpy as np
 import pretty_midi
 
@@ -16,6 +17,11 @@ class PianoRollEncoding:
         self.num_rows = max_pitch - min_pitch + 1
 
     def encode(self, notes):
+        if isinstance(notes, music_pb2.NoteSequence):
+            notes = [pretty_midi.Note(start=n.start_time, end=n.end_time,
+                                      pitch=n.pitch, velocity=n.velocity)
+                     for n in notes.notes]
+
         instrument = pretty_midi.Instrument(0)
         instrument.notes[:] = notes
         roll = instrument.get_piano_roll(fs=self._fs)
