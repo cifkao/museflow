@@ -255,6 +255,7 @@ def make_train_dataset(generator, output_types, output_shapes, batch_size,
             indefinitely.
         num_examples: If given, the number of examples per training epoch will be limited
             to this number (before shuffling).
+        name: A name for the name scope for the dataset.
 
     Return:
         A `tf.data.Dataset`.
