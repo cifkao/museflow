@@ -224,17 +224,9 @@ def prepare_train_and_val_data(train_generator, val_generator, output_types, out
     Return:
         A tuple `(train_dataset, val_dataset)`.
     """
-    with tf.name_scope('train'):
-        train_dataset = tf.data.Dataset.from_generator(train_generator, output_types)
-        if num_train_examples:
-            train_dataset = train_dataset.take(num_train_examples)
-        if shuffle_buffer_size:
-            train_dataset = train_dataset.shuffle(shuffle_buffer_size,
-                                                  reshuffle_each_iteration=True)
-        if preprocess_fn:
-            train_dataset = train_dataset.map(preprocess_fn)
-        train_dataset = train_dataset.repeat(num_epochs)
-        train_dataset = train_dataset.padded_batch(train_batch_size, output_shapes)
+    train_dataset = make_train_dataset(train_generator, output_types, output_shapes,
+                                       train_batch_size, shuffle_buffer_size, preprocess_fn,
+                                       num_epochs, num_train_examples)
     if dataset_manager:
         dataset_manager.add_dataset('train', train_dataset, one_shot=True)
 
@@ -245,6 +237,40 @@ def prepare_train_and_val_data(train_generator, val_generator, output_types, out
         dataset_manager.add_dataset('val', val_dataset)
 
     return train_dataset, val_dataset
+
+
+def make_train_dataset(generator, output_types, output_shapes, batch_size,
+                       shuffle_buffer_size=100000, preprocess_fn=None, num_epochs=None,
+                       num_examples=None, name='train'):
+    """Prepare a training dataset.
+
+    Args:
+        generator: A generator yielding the examples.
+        output_types: The type(s) of the elements of the dataset.
+        output_shapes: The padded shape(s) of the elements of the dataset.
+        batch_size: The batch size of the dataset.
+        shuffle_buffer_size: The size of the buffer used for sampling elements from the dataset.
+        preprocess_fn: The pre-processing function to apply to the data.
+        num_epochs: The number of training epochs. If `None`, the training dataset will loop
+            indefinitely.
+        num_examples: If given, the number of examples per training epoch will be limited
+            to this number (before shuffling).
+
+    Return:
+        A `tf.data.Dataset`.
+    """
+    with tf.name_scope(name):
+        dataset = tf.data.Dataset.from_generator(generator, output_types)
+        if num_examples:
+            dataset = dataset.take(num_examples)
+        if shuffle_buffer_size:
+            dataset = dataset.shuffle(shuffle_buffer_size,
+                                      reshuffle_each_iteration=True)
+        if preprocess_fn:
+            dataset = dataset.map(preprocess_fn)
+        dataset = dataset.repeat(num_epochs)
+        dataset = dataset.padded_batch(batch_size, output_shapes)
+        return dataset
 
 
 def make_simple_dataset(generator, output_types, output_shapes, batch_size=None, name='dataset',
