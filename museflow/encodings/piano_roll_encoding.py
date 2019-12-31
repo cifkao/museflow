@@ -1,4 +1,4 @@
-from magenta.protobuf import music_pb2
+from magenta.music.protobuf import music_pb2
 import numpy as np
 import pretty_midi
 
