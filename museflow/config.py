@@ -225,7 +225,7 @@ class Configuration:
 
     def __contains__(self, key):
         try:
-            return key in self._wrapped
+            return self._wrapped is not _MISSING_VALUE and key in self._wrapped
         except TypeError as e:
             raise TypeError(f'{self.name}: {e}') from None
 
@@ -244,7 +244,7 @@ class Configuration:
     def _get_key_name(self, key):
         if not self._is_special_name:
             return f'{self.name}.{key}' if isinstance(key, str) else f'{self.name}[{key}]'
-        return key
+        return key if isinstance(key, str) else f'[{key}]'
 
     @classmethod
     def from_yaml(cls, stream, loader=yaml.UnsafeLoader):
