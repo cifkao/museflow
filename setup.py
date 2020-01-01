@@ -16,6 +16,7 @@ setuptools.setup(
     install_requires=[
         'cached_property',
         'coloredlogs',
+        'lmdb',
         'numpy',
         'pretty_midi',
         'pyyaml',
