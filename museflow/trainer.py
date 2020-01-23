@@ -127,7 +127,7 @@ class BasicTrainer(BaseTrainer):
 
         self._savers = {
             'latest': self._cfg['latest_saver'].configure(tf.train.Saver,
-                                                          name='latest', max_to_keep=2),
+                                                          name='latest', max_to_keep=1),
             'best': self._cfg['best_saver'].configure(tf.train.Saver,
                                                       name='best', max_to_keep=1)
         }
