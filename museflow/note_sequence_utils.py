@@ -2,6 +2,7 @@ import copy as copy_lib
 import math
 import re
 import sys
+import warnings
 
 from magenta.music.protobuf import music_pb2
 from magenta.music import sequences_lib, midi_io
@@ -83,7 +84,9 @@ def normalize_tempo(sequence, new_tempo=60):
         return np.interp(t, original_times, new_times)
 
     adjusted_sequence, skipped_notes = sequences_lib.adjust_notesequence_times(sequence, time_func)
-    assert not skipped_notes
+    if skipped_notes:
+        warnings.warn(f'{len(skipped_notes)} notes skipped in adjust_notesequence_times',
+                      RuntimeWarning)
 
     del adjusted_sequence.tempos[:]
     tempo = adjusted_sequence.tempos.add()
