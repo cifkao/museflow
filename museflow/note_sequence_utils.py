@@ -85,8 +85,7 @@ def normalize_tempo(sequence, new_tempo=60):
 
     adjusted_sequence, skipped_notes = sequences_lib.adjust_notesequence_times(sequence, time_func)
     if skipped_notes:
-        warnings.warn(f'{len(skipped_notes)} notes skipped in adjust_notesequence_times',
-                      RuntimeWarning)
+        warnings.warn(f'{skipped_notes} notes skipped in adjust_notesequence_times', RuntimeWarning)
 
     del adjusted_sequence.tempos[:]
     tempo = adjusted_sequence.tempos.add()
