@@ -90,4 +90,4 @@ def save_sequences_db(sequences, keys, db_path):
         with db.begin(buffers=True, write=True) as txn:
             for key, seq in zip(keys, sequences):
                 if not txn.put(key.encode(), seq.SerializeToString(), overwrite=False):
-                    raise RuntimeError('Duplicate key')
+                    raise RuntimeError(f'Duplicate key: {key}')
