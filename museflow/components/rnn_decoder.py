@@ -1,11 +1,11 @@
+from confugue import configurable
 import tensorflow as tf
 
-from museflow.config import configurable
 from museflow.nn.rnn import DropoutWrapper
 from .component import Component, using_scope
 
 
-@configurable(['cell', 'dropout', 'token_dropout', 'output_projection', 'attention_wrapper'])
+@configurable(params=['pre_attention', 'max_length', 'name'])
 class RNNDecoder(Component):
 
     def __init__(self,

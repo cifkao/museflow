@@ -1,11 +1,11 @@
+from confugue import configurable
 import tensorflow as tf
 
-from museflow.config import configurable
 from museflow.nn.rnn import DropoutWrapper
 from .component import Component, using_scope
 
 
-@configurable(['forward_cell', 'backward_cell', 'dropout', 'final_state_dropout'])
+@configurable(params=['output_states', 'name'])
 class RNNLayer(Component):
 
     def __init__(self, training=None, forward_cell=None, backward_cell=None,

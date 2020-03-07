@@ -2,17 +2,17 @@ import argparse
 import os
 import pickle
 
+from confugue import Configuration, configurable
 import tensorflow as tf
 
 from museflow import logger
 from museflow.components import RNNDecoder, EmbeddingLayer
-from museflow.config import Configuration, configurable
 from museflow.model_utils import (DatasetManager, create_train_op, prepare_train_and_val_data,
                                   set_random_seed)
 from museflow.trainer import BasicTrainer
 
 
-@configurable(['embedding_layer', 'decoder', 'training'])
+@configurable
 class RNNGenerator:
 
     def __init__(self, train_mode, vocabulary, sampling_seed=None):
@@ -98,28 +98,28 @@ def main(args):
         pickle.dump(output, args.output_file)
 
 
-@configurable(['encoding', 'model', 'data_prep', 'trainer'])
-def _init(cfg, logdir, train_mode, **kwargs):
-    set_random_seed(kwargs.get('random_seed'))
+@configurable
+def _init(logdir, train_mode, *, sampling_seed=None, _cfg):
+    set_random_seed(_cfg.get('random_seed', None))
 
-    encoding = cfg['encoding'].configure()
-    model = cfg['model'].configure(RNNGenerator,
-                                   train_mode=train_mode,
-                                   vocabulary=encoding.vocabulary,
-                                   sampling_seed=kwargs.get('sampling_seed'))
-    trainer = cfg['trainer'].configure(BasicTrainer,
-                                       dataset_manager=model.dataset_manager,
-                                       training_ops=model.training_ops,
-                                       logdir=logdir,
-                                       write_summaries=train_mode)
+    encoding = _cfg['encoding'].configure()
+    model = _cfg['model'].configure(RNNGenerator,
+                                    train_mode=train_mode,
+                                    vocabulary=encoding.vocabulary,
+                                    sampling_seed=sampling_seed)
+    trainer = _cfg['trainer'].configure(BasicTrainer,
+                                        dataset_manager=model.dataset_manager,
+                                        training_ops=model.training_ops,
+                                        logdir=logdir,
+                                        write_summaries=train_mode)
 
     if train_mode:
         # Configure the dataset manager with the training and validation data.
-        cfg['data_prep'].configure(
+        _cfg['data_prep'].configure(
             prepare_train_and_val_data,
             dataset_manager=model.dataset_manager,
-            train_generator=_make_data_generator(encoding, kwargs['train_data']),
-            val_generator=_make_data_generator(encoding, kwargs['val_data']),
+            train_generator=_make_data_generator(encoding, _cfg.get('train_data')),
+            val_generator=_make_data_generator(encoding, _cfg.get('val_data')),
             output_types=(tf.int32, tf.int32),
             output_shapes=([None], [None]))
 

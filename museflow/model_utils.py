@@ -1,26 +1,26 @@
 import random
 
+from confugue import configurable
 import numpy as np
 import tensorflow as tf
 
 from museflow import logger
-from museflow.config import configurable
 
 
-@configurable(['optimizer', 'lr_decay'])
-def create_train_op(cfg, loss, optimizer=None, variables=None, max_gradient_norm=None,
-                    name='training'):
+@configurable(params=['variables', 'max_gradient_norm', 'name'])
+def create_train_op(loss, optimizer=None, variables=None, max_gradient_norm=None,
+                    name='training', *, _cfg):
     """Create a training op."""
     global_step = tf.train.get_or_create_global_step()
 
     if optimizer is None:
         opt_args = {}
-        learning_rate = cfg['lr_decay'].maybe_configure(global_step=global_step)
+        learning_rate = _cfg['lr_decay'].maybe_configure(global_step=global_step)
         if learning_rate is not None:
             opt_args['learning_rate'] = learning_rate
             tf.summary.scalar('learning_rate', learning_rate, family='train')
 
-        optimizer = cfg['optimizer'].configure(tf.train.AdamOptimizer, **opt_args)
+        optimizer = _cfg['optimizer'].configure(tf.train.AdamOptimizer, **opt_args)
 
     if variables is None:
         variables = tf.trainable_variables()

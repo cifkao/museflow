@@ -3,11 +3,11 @@ import copy
 import os
 import types
 
+from confugue import configurable
 import numpy as np
 import tensorflow as tf
 
 from museflow import logger
-from museflow.config import configurable
 
 
 class BaseTrainer(metaclass=abc.ABCMeta):
@@ -107,7 +107,7 @@ class BaseTrainer(metaclass=abc.ABCMeta):
 DEFAULT = object()
 
 
-@configurable(['latest_saver', 'best_saver'])
+@configurable
 class BasicTrainer(BaseTrainer):
     """A trainer implementing a basic training/validation loop."""
 

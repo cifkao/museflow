@@ -2,18 +2,17 @@ import argparse
 import os
 import pickle
 
+from confugue import Configuration, configurable
 import tensorflow as tf
 
 from museflow import logger
 from museflow.components import EmbeddingLayer, RNNLayer, RNNDecoder
-from museflow.config import Configuration, configurable
 from museflow.model_utils import (DatasetManager, create_train_op, prepare_train_and_val_data,
                                   make_simple_dataset, set_random_seed)
 from museflow.trainer import BasicTrainer
 
 
-@configurable(['embedding_layer', 'encoder', 'state_projection',
-               'decoder', 'attention_mechanism', 'training'])
+@configurable
 class RNNSeq2Seq:
 
     def __init__(self, train_mode, vocabulary, sampling_seed=None):
@@ -127,28 +126,28 @@ def main(args):
         pickle.dump(output, args.output_file)
 
 
-@configurable(['encoding', 'model', 'data_prep', 'train_data', 'val_data', 'trainer'])
-def _init(cfg, logdir, train_mode, **kwargs):
-    set_random_seed(kwargs.get('random_seed'))
+@configurable
+def _init(logdir, train_mode, *, sampling_seed=None, _cfg):
+    set_random_seed(_cfg.get('random_seed'))
 
-    encoding = cfg['encoding'].configure()
-    model = cfg['model'].configure(RNNSeq2Seq,
-                                   train_mode=train_mode,
-                                   vocabulary=encoding.vocabulary,
-                                   sampling_seed=kwargs.get('sampling_seed'))
-    trainer = cfg['trainer'].configure(BasicTrainer,
-                                       dataset_manager=model.dataset_manager,
-                                       training_ops=model.training_ops,
-                                       logdir=logdir,
-                                       write_summaries=train_mode)
+    encoding = _cfg['encoding'].configure()
+    model = _cfg['model'].configure(RNNSeq2Seq,
+                                    train_mode=train_mode,
+                                    vocabulary=encoding.vocabulary,
+                                    sampling_seed=sampling_seed)
+    trainer = _cfg['trainer'].configure(BasicTrainer,
+                                        dataset_manager=model.dataset_manager,
+                                        training_ops=model.training_ops,
+                                        logdir=logdir,
+                                        write_summaries=train_mode)
 
     if train_mode:
         # Configure the dataset manager with the training and validation data.
-        cfg['data_prep'].configure(
+        _cfg['data_prep'].configure(
             prepare_train_and_val_data,
             dataset_manager=model.dataset_manager,
-            train_generator=cfg['train_data'].configure(_load_data, encoding=encoding),
-            val_generator=cfg['val_data'].configure(_load_data, encoding=encoding),
+            train_generator=_cfg['train_data'].configure(_load_data, encoding=encoding),
+            val_generator=_cfg['val_data'].configure(_load_data, encoding=encoding),
             output_types=(tf.int32, tf.int32, tf.int32),
             output_shapes=([None], [None], [None]))
 
