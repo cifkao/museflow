@@ -20,7 +20,7 @@ class PianoRollEncoding:
         if isinstance(notes, music_pb2.NoteSequence):
             notes = [pretty_midi.Note(start=n.start_time, end=n.end_time,
                                       pitch=n.pitch, velocity=n.velocity)
-                     for n in notes.notes]
+                     for n in notes.notes if not n.is_drum]
 
         instrument = pretty_midi.Instrument(0)
         instrument.notes[:] = notes
