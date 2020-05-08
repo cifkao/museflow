@@ -3,6 +3,7 @@ import heapq
 import warnings
 
 from magenta.music.protobuf import music_pb2
+from magenta.music.constants import STANDARD_PPQ
 import numpy as np
 import pretty_midi
 
@@ -18,15 +19,21 @@ class PerformanceEncoding:
     """
 
     def __init__(self, time_unit=0.01, max_shift_units=100, velocity_unit=4, use_velocity=True,
-                 use_all_off_event=False, errors='remove', warn_on_errors=False):
+                 use_all_off_event=False, use_drum_events=False, use_magenta=False, errors='remove',
+                 warn_on_errors=False):
 
         self._time_unit = time_unit
         self._max_shift_units = max_shift_units
         self._velocity_unit = velocity_unit
         self._use_velocity = use_velocity
         self._use_all_off_event = use_all_off_event
+        self._use_drum_events = use_drum_events
+        self._use_magenta = use_magenta
         self._errors = errors
         self._warn_on_errors = warn_on_errors
+
+        if use_drum_events:
+            assert use_magenta
 
         max_velocity_units = (128 + velocity_unit - 1) // velocity_unit
 
@@ -34,6 +41,9 @@ class PerformanceEncoding:
                     [('NoteOn', i) for i in range(128)] +
                     [('NoteOff', i) for i in range(128)] +
                     ([('NoteOff', '*')] if use_all_off_event else []) +
+                    ([('DrumOn', i) for i in range(128)] +
+                     [('DrumOff', i) for i in range(128)]
+                     if use_drum_events else []) +
                     [('TimeShift', i + 1) for i in range(max_shift_units)])
 
         if use_velocity:
@@ -45,7 +55,9 @@ class PerformanceEncoding:
         self.vocabulary = Vocabulary(wordlist)
 
     def encode(self, notes, as_ids=True, add_start=False, add_end=False):
+        is_drum = False
         if isinstance(notes, music_pb2.NoteSequence):
+            is_drum = (len(notes.notes) > 0 and notes.notes[0].is_drum)
             notes = [pretty_midi.Note(start=n.start_time, end=n.end_time,
                                       pitch=n.pitch, velocity=n.velocity)
                      for n in notes.notes]
@@ -66,9 +78,15 @@ class PerformanceEncoding:
                     velocity = note.velocity
                     if self._use_velocity:
                         events.append(('SetVelocity', velocity // self._velocity_unit + 1))
-                events.append(('NoteOn', note.pitch))
+                if is_drum and self._use_drum_events:
+                    events.append(('DrumOn', note.pitch))
+                else:
+                    events.append(('NoteOn', note.pitch))
             else:
-                events.append(('NoteOff', note.pitch))
+                if is_drum and self._use_drum_events:
+                    events.append(('DrumOff', note.pitch))
+                else:
+                    events.append(('NoteOff', note.pitch))
 
         if self._use_all_off_event:
             events = _compress_note_offs(events)
@@ -84,6 +102,7 @@ class PerformanceEncoding:
         notes = []
         notes_on = defaultdict(list)
         error_count = 0
+        is_drum = False
 
         t = 0
         velocity = self._default_velocity
@@ -100,11 +119,12 @@ class PerformanceEncoding:
                 t += value * self._time_unit
             elif event == 'SetVelocity':
                 velocity = (value - 1) * self._velocity_unit
-            elif event == 'NoteOn':
+            elif event in ['NoteOn', 'DrumOn']:
                 note = pretty_midi.Note(start=t, end=None, pitch=value, velocity=velocity)
                 notes.append(note)
                 notes_on[value].append(note)
-            elif event == 'NoteOff':
+                is_drum |= (event == 'DrumOn')
+            elif event in ['NoteOff', 'DrumOff']:
                 if value == '*':
                     assert self._use_all_off_event
 
@@ -135,6 +155,18 @@ class PerformanceEncoding:
             else:  # 'ignore'
                 self._log_errors('Ignoring {} hanging note(s)'.format(
                     sum(len(l) for l in notes_on.values())))
+
+        if self._use_magenta:
+            sequence = music_pb2.NoteSequence()
+            sequence.ticks_per_quarter = STANDARD_PPQ
+            for note0 in notes:
+                note = sequence.notes.add()
+                note.start_time = note0.start
+                note.end_time = note0.end
+                note.pitch = note0.pitch
+                note.velocity = note0.velocity
+                note.is_drum = is_drum
+            return sequence
 
         return notes
 
