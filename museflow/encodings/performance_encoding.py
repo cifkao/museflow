@@ -74,8 +74,12 @@ class PerformanceEncoding:
                 events.append(('TimeShift', shift_amount))
 
             if is_onset:
-                if velocity != note.velocity:
-                    velocity = note.velocity
+                note_velocity = note.velocity
+                if note_velocity > 127 or note_velocity < 1:
+                    warnings.warn(f'Invalid velocity value: {note_velocity}')
+                    note_velocity = self._default_velocity
+                if velocity != note_velocity:
+                    velocity = note_velocity
                     if self._use_velocity:
                         events.append(('SetVelocity', velocity // self._velocity_unit + 1))
                 if is_drum and self._use_drum_events:
