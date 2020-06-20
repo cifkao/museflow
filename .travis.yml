@@ -25,7 +25,7 @@ jobs:
         - cd tests; ./test_models.sh
     - name: 'Code style'
       install:
-        - pip install pycodestyle pydocstyle
+        - pip install pycodestyle==2.4.0 pydocstyle==5.0.2
       script:
         - pycodestyle museflow
         - pydocstyle museflow
