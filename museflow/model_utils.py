@@ -112,7 +112,7 @@ class DatasetManager:
         """Initialize the given dataset's iterator."""
         session.run(self._iterators[name].initializer)
 
-    def run(self, session, fetches, dataset_name=None, feed_dict=None):
+    def run(self, session, fetches, dataset_name=None, feed_dict=None, options=None):
         """Run the given TensorFlow ops while using the chosen dataset.
 
         Args:
@@ -121,6 +121,7 @@ class DatasetManager:
             dataset_name: The name of the dataset to use. If `None` (default), no dataset will be
                 used.
             feed_dict: The `feed_dict` to pass to `session.run`.
+            options: A `RunOptions` proto to pass to `session.run`.
         Returns:
             The return value of `session.run`.
         """
@@ -135,9 +136,10 @@ class DatasetManager:
                 self._handles[dataset_name] = session.run(iterator.string_handle())
             feed_dict[self._handle_placeholder] = self._handles[dataset_name]
         self._last_session = session
-        return session.run(fetches, feed_dict)
+        return session.run(fetches, feed_dict, options=options)
 
-    def run_over_dataset(self, session, fetches, dataset, feed_dict=None, concat_batches=False):
+    def run_over_dataset(self, session, fetches, dataset, feed_dict=None, concat_batches=False,
+                         options=None):
         """Run the given TensorFlow ops while iterating over an entire dataset.
 
         Args:
@@ -146,6 +148,7 @@ class DatasetManager:
             dataset: The name of the dataset to use, or a new `tf.data.Dataset`.
             feed_dict: The `feed_dict` to pass to `session.run`.
             concat_batches: If `True`, the results will be concatenated along the first dimension.
+            options: A `RunOptions` proto to pass to `session.run`.
         Returns:
             A list of results of `session.run`. If `fetches` is a nested structure of tensors,
             then the same nested structure will be returned, containing a list of results for each
@@ -163,7 +166,8 @@ class DatasetManager:
         results = []
         while True:
             try:
-                results.append(self.run(session, fetches, dataset_name, feed_dict=feed_dict))
+                results.append(self.run(session, fetches, dataset_name, feed_dict=feed_dict,
+                                        options=options))
             except tf.errors.OutOfRangeError:
                 break
 
