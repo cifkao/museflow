@@ -7,7 +7,7 @@ jobs:
       install:
         - pip install tensorflow==1.12
         - pip install '.[nogpu]'
-        - pip install pylint pylint-quotes
+        - pip install pylint==2.4.4 pylint-quotes
       script:
         - pylint museflow
     - name: 'Unit tests'
