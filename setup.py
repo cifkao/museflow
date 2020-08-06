@@ -25,7 +25,7 @@ setuptools.setup(
         'numpy',
         'pretty_midi',
         'pyyaml',
-        'magenta.music @ git+https://github.com/cifkao/magenta@magenta.music',
+        'note_seq',
     ],
     extras_require={
         'gpu': [
