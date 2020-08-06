@@ -25,7 +25,7 @@ setuptools.setup(
         'numpy',
         'pretty_midi',
         'pyyaml',
-        'note_seq',
+        'note-seq',
     ],
     extras_require={
         'gpu': [
