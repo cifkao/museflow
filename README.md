@@ -10,15 +10,15 @@ The most important modules are:
 
 To install, run:
 ```sh
-pip install '.[gpu]'
+pip install 'museflow[gpu]'
 ```
 To install without GPU support:
 ```sh
-pip install '.[nogpu]'
+pip install 'museflow[nogpu]'
 ```
 
 ## License
-This software is distributed under the [BSD 3-Clause License](LICENSE).
+This software is distributed under the [BSD 3-Clause License](https://github.com/cifkao/museflow/blob/master/LICENSE).
 
 Copyright 2019 Ondřej Cífka of Télécom Paris, Institut Polytechnique de Paris.  
 All rights reserved.
